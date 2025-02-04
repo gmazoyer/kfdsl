@@ -28,15 +28,6 @@ func ParseUnsignedInt(raw int, name string) func(r int) (int, error) {
 	}
 }
 
-// func ParsePositiveInt(raw int, name string) func(r int) (int, error) {
-// 	return func(r int) (int, error) {
-// 		if raw < 1 {
-// 			return 0, fmt.Errorf("invalid %s (%d): value must be positive", name, raw)
-// 		}
-// 		return raw, nil
-// 	}
-// }
-
 func ParseIntRange(raw int, min int, max int, name string) func(r int) (int, error) {
 	return func(r int) (int, error) {
 		if raw < min || raw > max {

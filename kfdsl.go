@@ -11,12 +11,12 @@ import (
 
 	"github.com/spf13/viper"
 
-	"kfdsl/cmd"
-	"kfdsl/internal/config"
-	"kfdsl/internal/config/secrets"
-	"kfdsl/internal/services/kfserver"
-	"kfdsl/internal/services/redirectserver"
-	"kfdsl/internal/services/steamcmd"
+	"github.com/K4rian/kfdsl/cmd"
+	"github.com/K4rian/kfdsl/internal/config"
+	"github.com/K4rian/kfdsl/internal/config/secrets"
+	"github.com/K4rian/kfdsl/internal/services/kfserver"
+	"github.com/K4rian/kfdsl/internal/services/redirectserver"
+	"github.com/K4rian/kfdsl/internal/services/steamcmd"
 )
 
 const (

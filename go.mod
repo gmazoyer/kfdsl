@@ -1,4 +1,4 @@
-module kfdsl
+module github.com/K4rian/kfdsl
 
 go 1.22.6
 

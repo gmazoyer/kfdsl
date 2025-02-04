@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"kfdsl/cmd"
-	"kfdsl/internal/utils"
+	"github.com/K4rian/kfdsl/cmd"
+	"github.com/K4rian/kfdsl/internal/utils"
 
 	"github.com/spf13/viper"
 )

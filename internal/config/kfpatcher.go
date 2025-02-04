@@ -1,7 +1,7 @@
 package config
 
 import (
-	"kfdsl/internal/config/ini"
+	"github.com/K4rian/kfdsl/internal/config/ini"
 )
 
 type KFPIniFile struct {

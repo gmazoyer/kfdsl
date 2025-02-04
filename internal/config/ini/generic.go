@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -206,77 +207,6 @@ func (f *GenericIniFile) Save(filePath string) error {
 	return nil
 }
 
-/*
-	func (f *GenericIniFile) FromStruct(data interface{}) error {
-		v := reflect.ValueOf(data)
-		if v.Kind() != reflect.Struct {
-			return fmt.Errorf("FromStruct: expected a struct, got %s", v.Kind())
-		}
-
-		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
-			field := t.Field(i)
-			value := v.Field(i)
-
-			// Skip unexported fields
-			if !value.CanInterface() {
-				continue
-			}
-
-			// Get `ini` tag
-			tag := field.Tag.Get("ini")
-			if tag == "" {
-				continue
-			}
-
-			// Parse the `ini` tag ("section::key")
-			parts := strings.Split(tag, "::")
-			if len(parts) != 2 {
-				return fmt.Errorf("invalid ini tag format: %s", tag)
-			}
-			section, key := parts[0], parts[1]
-
-			// Check for readonly tag
-			if field.Tag.Get("readonly") == "true" {
-				continue
-			}
-
-			// Check for default value
-			defaultValue := field.Tag.Get("default")
-			valStr := ""
-
-			// Get the value as string
-			switch value.Kind() {
-			case reflect.String:
-				valStr = value.String()
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				valStr = fmt.Sprintf("%d", value.Int())
-			case reflect.Slice:
-				if value.Type().Elem().Kind() == reflect.String {
-					// Only support []string for now
-					strSlice := value.Interface().([]string)
-					valStr = strings.Join(strSlice, ",")
-				}
-			default:
-				return fmt.Errorf("unsupported field type: %s", value.Type())
-			}
-
-			// Use default value if empty
-			if valStr == "" && defaultValue != "" {
-				valStr = defaultValue
-			}
-
-			// Add/Update the corresponding key
-			if valStr != "" {
-				if sect := f.GetSection(section); sect != nil {
-					sect.SetKey(key, valStr)
-				}
-			}
-		}
-		return nil
-	}
-*/
-
 func (f *GenericIniFile) setInterface(section string, key string, value interface{}, unique bool) bool {
 	sect := f.GetSection(section)
 
@@ -293,14 +223,8 @@ func (f *GenericIniFile) setInterface(section string, key string, value interfac
 		_, isSet = sect.GetKey(key)
 	} else {
 		sect.SetKey(key, valueStr)
-
 		allKeys := sect.GetAllKeys(key)
-		for _, k := range allKeys {
-			if k == valueStr {
-				isSet = true
-				break
-			}
-		}
+		isSet = slices.Contains(allKeys, valueStr)
 	}
 	return isSet
 }

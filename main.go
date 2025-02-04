@@ -8,9 +8,9 @@ import (
 	"sync"
 	"syscall"
 
-	"kfdsl/cmd"
-	"kfdsl/internal/services/kfserver"
-	"kfdsl/internal/services/redirectserver"
+	"github.com/K4rian/kfdsl/cmd"
+	"github.com/K4rian/kfdsl/internal/services/kfserver"
+	"github.com/K4rian/kfdsl/internal/services/redirectserver"
 )
 
 func shutdown(cancel context.CancelFunc, redirectServer *redirectserver.HTTPRedirectServer, gameServer *kfserver.KFServer) {
@@ -87,16 +87,5 @@ func main() {
 		fmt.Printf("> HTTP Redirect Server serving directory '%s' on %s\n", redirectServer.RootDirectory(), redirectServer.Host())
 	}
 
-	/*
-		// Test
-		go func() {
-			fmt.Printf("\n------ Let's wait 20 seconds then restart the server... ------\n\n")
-			time.Sleep(20 * time.Second)
-			fmt.Printf("\n------ Restarting... ------\n\n")
-			if err := gameServer.Restart(); err != nil {
-				fmt.Printf("KFServer restart error: %v\n", err)
-			}
-		}()
-	*/
 	<-signalChan
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"kfdsl/internal/config/ini"
+	"github.com/K4rian/kfdsl/internal/config/ini"
 )
 
 type KFIniFile struct {

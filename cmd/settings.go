@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"kfdsl/internal/arguments"
+	"github.com/K4rian/kfdsl/internal/arguments"
 )
 
 type KFDSLSettings struct {
