@@ -97,6 +97,8 @@ func startRedirectServer(ctx context.Context) (*redirectserver.HTTPRedirectServe
 		settings.RedirectServerHost.Value(),
 		settings.RedirectServerPort.Value(),
 		settings.RedirectServerDir.Value(),
+		settings.RedirectServerMaxRequests.Value(),
+		settings.RedirectServerBanTime.Value(),
 		ctx,
 	)
 

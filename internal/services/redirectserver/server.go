@@ -24,19 +24,28 @@ const (
 )
 
 type HTTPRedirectServer struct {
-	ip             string
-	port           int
-	rootDir        string
-	server         *http.Server
-	ctx            context.Context
-	cancel         context.CancelFunc
-	mu             sync.Mutex
-	ipRequestCount map[string][]time.Time
-	ipBlockList    map[string]time.Time
-	defaultFile    string
+	ip               string
+	port             int
+	rootDir          string
+	server           *http.Server
+	maxRequestsPerIP int
+	banTime          int
+	ctx              context.Context
+	cancel           context.CancelFunc
+	mu               sync.Mutex
+	ipRequestCount   map[string][]time.Time
+	ipBlockList      map[string]time.Time
+	defaultFile      string
 }
 
-func NewHTTPRedirectServer(ip string, port int, rootDir string, ctx context.Context) *HTTPRedirectServer {
+func NewHTTPRedirectServer(
+	ip string,
+	port int,
+	rootDir string,
+	maxRequestsPerIP int,
+	banTime int,
+	ctx context.Context,
+) *HTTPRedirectServer {
 	mux := http.NewServeMux()
 	fileServer := http.FileServer(http.Dir(rootDir))
 
@@ -45,12 +54,14 @@ func NewHTTPRedirectServer(ip string, port int, rootDir string, ctx context.Cont
 			Addr:    fmt.Sprintf("%s:%d", ip, port),
 			Handler: mux,
 		},
-		ip:             ip,
-		port:           port,
-		rootDir:        rootDir,
-		ipRequestCount: make(map[string][]time.Time),
-		ipBlockList:    make(map[string]time.Time),
-		defaultFile:    filepath.Join(rootDir, "index.html"),
+		ip:               ip,
+		port:             port,
+		rootDir:          rootDir,
+		maxRequestsPerIP: maxRequestsPerIP,
+		banTime:          banTime,
+		ipRequestCount:   make(map[string][]time.Time),
+		ipBlockList:      make(map[string]time.Time),
+		defaultFile:      filepath.Join(rootDir, "index.html"),
 	}
 	server.ctx, server.cancel = context.WithCancel(ctx)
 
@@ -196,9 +207,9 @@ func (h *HTTPRedirectServer) trackIPRequest(ip string) {
 	h.ipRequestCount[ip] = filterRecentRequests(h.ipRequestCount[ip], now)
 
 	// Check if the IP has exceeded the request threshold
-	if len(h.ipRequestCount[ip]) > 20 {
-		// Block the IP for 30 min
-		h.ipBlockList[ip] = now.Add(30 * time.Minute)
+	if len(h.ipRequestCount[ip]) > h.maxRequestsPerIP {
+		// Block the IP
+		h.ipBlockList[ip] = now.Add(time.Duration(h.banTime) * time.Minute)
 	}
 
 	// Record the request time
