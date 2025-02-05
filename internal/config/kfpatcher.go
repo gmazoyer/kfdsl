@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/K4rian/kfdsl/internal/config/ini"
+	"github.com/K4rian/kfdsl/internal/settings"
 )
 
 type KFPIniFile struct {
@@ -41,19 +42,19 @@ func NewKFPIniFile(filePath string) (*KFPIniFile, error) {
 // bShowPerk
 
 func (kf *KFPIniFile) IsZEDTimeEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bAllowZedTime", true)
+	return kf.GetKeyBool("KFPatcher.Settings", "bAllowZedTime", !settings.DefaultKFPDisableZedTime)
 }
 
 func (kf *KFPIniFile) IsAllTradersOpenEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bAllTradersOpen", false)
+	return kf.GetKeyBool("KFPatcher.Settings", "bAllTradersOpen", settings.DefaultKFPEnableAllTraders)
 }
 
 func (kf *KFPIniFile) GetAllTradersMessage() string {
-	return kf.GetKey("KFPatcher.Settings", "bAllTradersMessage", "")
+	return kf.GetKey("KFPatcher.Settings", "bAllTradersMessage", settings.DefaultKFPAllTradersMessage)
 }
 
 func (kf *KFPIniFile) IsBuyEverywhereEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bBuyEverywhere", false)
+	return kf.GetKeyBool("KFPatcher.Settings", "bBuyEverywhere", settings.DefaultKFPBuyEverywhere)
 }
 
 // -----------------------

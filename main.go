@@ -51,14 +51,14 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	settings := settings.Get()
+	sett := settings.Get()
 
 	// Print all settings
-	settings.Print()
+	sett.Print()
 
 	// Start SteamCMD, if enabled
-	if !settings.NoSteam.Value() {
-		if err := startSteamCMD(ctx); err != nil {
+	if !sett.NoSteam.Value() {
+		if err := startSteamCMD(sett, ctx); err != nil {
 			fmt.Printf("ERROR: [SteamCMD]: %v\n", err)
 			os.Exit(1)
 		}
@@ -71,7 +71,7 @@ func main() {
 	defer shutdown(cancel, redirectServer, gameServer)
 
 	// Start the Killing Floor Dedicated Server
-	gameServer, err = startGameServer(ctx)
+	gameServer, err = startGameServer(sett, ctx)
 	if err != nil {
 		fmt.Printf("ERROR: [KFServer]: %v\n", err)
 		return
@@ -79,8 +79,8 @@ func main() {
 	fmt.Printf("> Killing Floor Server started from '%s'\n", gameServer.RootDirectory())
 
 	// Start the HTTP Redirect Server, if enabled
-	if settings.EnableRedirectServer.Value() {
-		redirectServer, err = startRedirectServer(ctx)
+	if sett.EnableRedirectServer.Value() {
+		redirectServer, err = startRedirectServer(sett, ctx)
 		if err != nil {
 			fmt.Printf("ERROR: [RedirectServer]: %v\n", err)
 			return

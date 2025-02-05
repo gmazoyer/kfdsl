@@ -46,9 +46,9 @@ const (
 	DefaultEnableMutLoader           = false
 	DefaultEnableKFPatcher           = false
 	DefaultKFPDisableZedTime         = false
-	DefaultKFPBuyEverywhere          = false
 	DefaultKFPEnableAllTraders       = false
 	DefaultKFPAllTradersMessage      = "\"^wAll traders are ^ropen^w!\""
+	DefaultKFPBuyEverywhere          = false
 	DefaultSteamLogin                = "anonymous"
 	DefaultSteamPassword             = ""
 )
