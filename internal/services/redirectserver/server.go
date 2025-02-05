@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-/*
-TODO:
-	MaxRequests and Bantime should be set through settings
-*/
-
 const (
 	ErrMethodNotAllowed    = "405 Method Not Allowed"
 	ErrNotFound            = "404 Not Found"

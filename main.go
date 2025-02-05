@@ -11,6 +11,7 @@ import (
 	"github.com/K4rian/kfdsl/cmd"
 	"github.com/K4rian/kfdsl/internal/services/kfserver"
 	"github.com/K4rian/kfdsl/internal/services/redirectserver"
+	"github.com/K4rian/kfdsl/internal/settings"
 )
 
 func shutdown(cancel context.CancelFunc, redirectServer *redirectserver.HTTPRedirectServer, gameServer *kfserver.KFServer) {
@@ -50,9 +51,9 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	settings := cmd.GetSettings()
+	settings := settings.Get()
 
-	// Print settings
+	// Print all settings
 	settings.Print()
 
 	// Start SteamCMD, if enabled
@@ -84,7 +85,7 @@ func main() {
 			fmt.Printf("ERROR: [RedirectServer]: %v\n", err)
 			return
 		}
-		fmt.Printf("> HTTP Redirect Server serving directory '%s' on %s\n", redirectServer.RootDirectory(), redirectServer.Host())
+		fmt.Printf("> HTTP Redirect Server serving '%s' on %s\n", redirectServer.RootDirectory(), redirectServer.Host())
 	}
 
 	<-signalChan

@@ -11,13 +11,29 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/K4rian/kfdsl/cmd"
 	"github.com/K4rian/kfdsl/internal/config"
 	"github.com/K4rian/kfdsl/internal/config/secrets"
 	"github.com/K4rian/kfdsl/internal/services/kfserver"
 	"github.com/K4rian/kfdsl/internal/services/redirectserver"
 	"github.com/K4rian/kfdsl/internal/services/steamcmd"
+	appsettings "github.com/K4rian/kfdsl/internal/settings"
 )
+
+type configUpdater[T any] struct {
+	name string       // Name
+	gv   func() T     // Getter
+	sv   func(T) bool // Setter
+	nv   any          // Value to set
+}
+
+func newConfigUpdater[T any](name string, gv func() T, sv func(T) bool, nv any) configUpdater[T] {
+	return configUpdater[T]{
+		name: name,
+		gv:   gv,
+		sv:   sv,
+		nv:   nv,
+	}
+}
 
 const (
 	KF_APPID = 215360
@@ -32,10 +48,10 @@ func startSteamCMD(ctx context.Context) error {
 
 	// Read Steam Account Credentials
 	if err := readSteamCredentials(); err != nil {
-		return err
+		return fmt.Errorf("credentials error: %v", err)
 	}
 
-	settings := cmd.GetSettings()
+	settings := appsettings.Get()
 
 	// Generate the Steam install script
 	installScript := path.Join(viper.GetString("STEAMCMD_ROOT"), "kfds_install_script.txt")
@@ -76,7 +92,7 @@ func startGameServer(ctx context.Context) (*kfserver.KFServer, error) {
 		return nil, fmt.Errorf("failed to update the KillingFloor.ini configuration file: %v", err)
 	}
 
-	settings := cmd.GetSettings()
+	settings := appsettings.Get()
 	if settings.EnableKFPatcher.Value() {
 		fmt.Printf("> Updating the KFPatcher configuration file...\n")
 		if err := updateKFPatcherConfigFile(); err != nil {
@@ -92,7 +108,7 @@ func startGameServer(ctx context.Context) (*kfserver.KFServer, error) {
 }
 
 func startRedirectServer(ctx context.Context) (*redirectserver.HTTPRedirectServer, error) {
-	settings := cmd.GetSettings()
+	settings := appsettings.Get()
 	redirectServer := redirectserver.NewHTTPRedirectServer(
 		settings.RedirectServerHost.Value(),
 		settings.RedirectServerPort.Value(),
@@ -109,7 +125,7 @@ func startRedirectServer(ctx context.Context) (*redirectserver.HTTPRedirectServe
 	return redirectServer, nil
 }
 
-func updateConfigFileServerMutators(iniFile *config.KFIniFile, settings *cmd.KFDSLSettings) error {
+func updateConfigFileServerMutators(iniFile *config.KFIniFile, settings *appsettings.KFDSLSettings) error {
 	mutatorsStr := settings.ServerMutators.Value()
 	mutators := strings.FieldsFunc(mutatorsStr, func(r rune) bool { return r == ',' })
 
@@ -119,22 +135,22 @@ func updateConfigFileServerMutators(iniFile *config.KFIniFile, settings *cmd.KFD
 
 	if len(mutators) > 0 {
 		if err := iniFile.SetServerMutators(mutators); err != nil {
-			return fmt.Errorf("[ServerMutators]: %v", err)
+			return err
 		}
 	} else {
 		if err := iniFile.ClearServerMutators(); err != nil {
-			return fmt.Errorf("[ServerMutators]: %v", err)
+			return err
 		}
 	}
 	return nil
 }
 
-func updateConfigFileMaplist(iniFile *config.KFIniFile, settings *cmd.KFDSLSettings) error {
+func updateConfigFileMaplist(iniFile *config.KFIniFile, settings *appsettings.KFDSLSettings) error {
 	gameMode := settings.GameMode.RawValue()
 
 	sectionName := kfserver.GetGameModeMaplistName(gameMode)
 	if sectionName == "" {
-		return fmt.Errorf("[Maplist]: undefined section name for game mode: %s", gameMode)
+		return fmt.Errorf("undefined section name for game mode: %s", gameMode)
 	}
 
 	mapList := strings.FieldsFunc(settings.Maplist.Value(), func(r rune) bool { return r == ',' })
@@ -148,184 +164,111 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, settings *cmd.KFDSLSetti
 				gameModePrefix,
 			)
 			if err != nil {
-				return fmt.Errorf("[Maplist]: unable to fetch available maps for game mode '%s': %v", gameMode, err)
+				return fmt.Errorf("unable to fetch available maps for game mode '%s': %v", gameMode, err)
 			}
 			mapList = installedMaps
 		}
 
 		if err := iniFile.SetMaplist(sectionName, mapList); err != nil {
-			return fmt.Errorf("[Maplist]: %v", err)
+			return err
 		}
 	} else {
 		if err := iniFile.ClearMaplist(sectionName); err != nil {
-			return fmt.Errorf("[Maplist]: %v", err)
+			return err
 		}
 	}
 	return nil
 }
 
 func updateConfigFile() error {
-	// TODO: Check returned values
 	kfiFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "KillingFloor.ini")
 	kfi, err := config.NewKFIniFile(kfiFilePath)
 	if err != nil {
 		return err
 	}
 
-	settings := cmd.GetSettings()
+	settings := appsettings.Get()
 
-	if kfi.GetServerName() != settings.ServerName.Value() {
-		kfi.SetServerName(settings.ServerName.Value())
+	// Generic config
+	cuList := []configUpdater[any]{
+		newConfigUpdater(settings.ServerName.Name(), func() any { return kfi.GetServerName() }, func(v any) bool { return kfi.SetServerName(v.(string)) }, settings.ServerName.Value()),
+		newConfigUpdater(settings.ShortName.Name(), func() any { return kfi.GetShortName() }, func(v any) bool { return kfi.SetShortName(v.(string)) }, settings.ShortName.Value()),
+		newConfigUpdater(settings.GamePort.Name(), func() any { return kfi.GetGamePort() }, func(v any) bool { return kfi.SetGamePort(v.(int)) }, settings.GamePort.Value()),
+		newConfigUpdater(settings.WebAdminPort.Name(), func() any { return kfi.GetWebAdminPort() }, func(v any) bool { return kfi.SetWebAdminPort(v.(int)) }, settings.WebAdminPort.Value()),
+		newConfigUpdater(settings.GameSpyPort.Name(), func() any { return kfi.GetGameSpyPort() }, func(v any) bool { return kfi.SetGameSpyPort(v.(int)) }, settings.GameSpyPort.Value()),
+		newConfigUpdater(settings.GameDifficulty.Name(), func() any { return kfi.GetGameDifficulty() }, func(v any) bool { return kfi.SetGameDifficulty(v.(int)) }, settings.GameDifficulty.Value()),
+		newConfigUpdater(settings.GameLength.Name(), func() any { return kfi.GetGameLength() }, func(v any) bool { return kfi.SetGameLength(v.(int)) }, settings.GameLength.Value()),
+		newConfigUpdater(settings.FriendlyFire.Name(), func() any { return kfi.GetFriendlyFireRate() }, func(v any) bool { return kfi.SetFriendlyFireRate(v.(float64)) }, settings.FriendlyFire.Value()),
+		newConfigUpdater(settings.MaxPlayers.Name(), func() any { return kfi.GetMaxPlayers() }, func(v any) bool { return kfi.SetMaxPlayers(v.(int)) }, settings.MaxPlayers.Value()),
+		newConfigUpdater(settings.Password.Name(), func() any { return kfi.GetPassword() }, func(v any) bool { return kfi.SetPassword(v.(string)) }, settings.Password.Value()),
+		newConfigUpdater(settings.Region.Name(), func() any { return kfi.GetRegion() }, func(v any) bool { return kfi.SetRegion(v.(int)) }, settings.Region.Value()),
+		newConfigUpdater(settings.AdminName.Name(), func() any { return kfi.GetAdminName() }, func(v any) bool { return kfi.SetAdminName(v.(string)) }, settings.AdminName.Value()),
+		newConfigUpdater(settings.AdminMail.Name(), func() any { return kfi.GetAdminMail() }, func(v any) bool { return kfi.SetAdminMail(v.(string)) }, settings.AdminMail.Value()),
+		newConfigUpdater(settings.AdminPassword.Name(), func() any { return kfi.GetAdminPassword() }, func(v any) bool { return kfi.SetAdminPassword(v.(string)) }, settings.AdminPassword.Value()),
+		newConfigUpdater(settings.MOTD.Value(), func() any { return kfi.GetMOTD() }, func(v any) bool { return kfi.SetMOTD(v.(string)) }, settings.MOTD.Value()),
+		newConfigUpdater(settings.SpecimenType.Name(), func() any { return kfi.GetSpecimenType() }, func(v any) bool { return kfi.SetSpecimenType(v.(string)) }, settings.SpecimenType.Value()),
+		newConfigUpdater(settings.RedirectURL.Name(), func() any { return kfi.GetRedirectURL() }, func(v any) bool { return kfi.SetRedirectURL(v.(string)) }, settings.RedirectURL.Value()),
+		newConfigUpdater(settings.EnableWebAdmin.Name(), func() any { return kfi.IsWebAdminEnabled() }, func(v any) bool { return kfi.SetWebAdminEnabled(v.(bool)) }, settings.EnableWebAdmin.Value()),
+		newConfigUpdater(settings.EnableMapVote.Name(), func() any { return kfi.IsMapVoteEnabled() }, func(v any) bool { return kfi.SetMapVoteEnabled(v.(bool)) == nil }, settings.EnableMapVote.Value()),
+		newConfigUpdater(settings.MapVoteRepeatLimit.Name(), func() any { return kfi.GetMapVoteRepeatLimit() }, func(v any) bool { return kfi.SetMapVoteRepeatLimit(v.(int)) }, settings.MapVoteRepeatLimit.Value()),
+	}
+	for _, conf := range cuList {
+		currentValue := conf.gv()
+		if currentValue != conf.nv && !conf.sv(conf.nv) {
+			return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+		}
 	}
 
-	if kfi.GetShortName() != settings.ShortName.Value() {
-		kfi.SetShortName(settings.ShortName.Value())
-	}
-
-	if kfi.GetGamePort() != settings.GamePort.Value() {
-		kfi.SetGamePort(settings.GamePort.Value())
-	}
-
-	if kfi.GetWebAdminPort() != settings.WebAdminPort.Value() {
-		kfi.SetWebAdminPort(settings.WebAdminPort.Value())
-	}
-
-	if kfi.GetGameSpyPort() != settings.GameSpyPort.Value() {
-		kfi.SetGameSpyPort(settings.GameSpyPort.Value())
-	}
-
-	if kfi.GetGameDifficulty() != settings.GameDifficulty.Value() {
-		kfi.SetGameDifficulty(settings.GameDifficulty.Value())
-	}
-
-	if kfi.GetGameLength() != settings.GameLength.Value() {
-		kfi.SetGameLength(settings.GameLength.Value())
-	}
-
-	if kfi.GetFriendlyFireRate() != settings.FriendlyFire.Value() {
-		kfi.SetFriendlyFireRate(settings.FriendlyFire.Value())
-	}
-
-	if kfi.GetMaxPlayers() != settings.MaxPlayers.Value() {
-		kfi.SetMaxPlayers(settings.MaxPlayers.Value())
-	}
-
-	if kfi.GetMaxSpectators() != settings.MaxSpectators.Value() {
-		kfi.SetMaxSpectators(settings.MaxSpectators.Value())
-	}
-
-	if kfi.GetPassword() != settings.Password.Value() {
-		kfi.SetPassword(settings.Password.Value())
-	}
-
-	if kfi.GetRegion() != settings.Region.Value() {
-		kfi.SetRegion(settings.Region.Value())
-	}
-
-	if kfi.GetAdminName() != settings.AdminName.Value() {
-		kfi.SetAdminName(settings.AdminName.Value())
-	}
-
-	if kfi.GetAdminMail() != settings.AdminMail.Value() {
-		kfi.SetAdminMail(settings.AdminMail.Value())
-	}
-
-	if kfi.GetAdminPassword() != settings.AdminPassword.Value() {
-		kfi.SetAdminPassword(settings.AdminPassword.Value())
-	}
-
-	if kfi.GetMOTD() != settings.MOTD.Value() {
-		kfi.SetMOTD(settings.MOTD.Value())
-	}
-
-	if kfi.GetSpecimenType() != settings.SpecimenType.Value() {
-		kfi.SetSpecimenType(settings.SpecimenType.Value())
-	}
-
-	if kfi.GetRedirectURL() != settings.RedirectURL.Value() {
-		kfi.SetRedirectURL(settings.RedirectURL.Value())
-	}
-
-	if kfi.IsWebAdminEnabled() != settings.EnableWebAdmin.Value() {
-		kfi.SetWebAdminEnabled(settings.EnableWebAdmin.Value())
-	}
-
-	if kfi.IsMapVoteEnabled() != settings.EnableMapVote.Value() {
-		kfi.SetMapVoteEnabled(settings.EnableMapVote.Value())
-	}
-
-	if kfi.GetMapVoteRepeatLimit() != settings.MapVoteRepeatLimit.Value() {
-		kfi.SetMapVoteRepeatLimit(settings.MapVoteRepeatLimit.Value())
-	}
-
-	if kfi.IsAdminPauseEnabled() != settings.EnableAdminPause.Value() {
-		kfi.SetAdminPauseEnabled(settings.EnableAdminPause.Value())
-	}
-
-	if kfi.IsWeaponThrowingEnabled() != !settings.DisableWeaponThrow.Value() {
-		kfi.SetWeaponThrowingEnabled(!settings.DisableWeaponThrow.Value())
-	}
-
-	if kfi.IsWeaponShakeEffectEnabled() != !settings.DisableWeaponShake.Value() {
-		kfi.SetWeaponShakeEffectEnabled(!settings.DisableWeaponShake.Value())
-	}
-
-	if kfi.IsThirdPersonEnabled() != settings.EnableThirdPerson.Value() {
-		kfi.SetThirdPersonEnabled(settings.EnableThirdPerson.Value())
-	}
-
-	if kfi.IsLowGoreEnabled() != settings.EnableLowGore.Value() {
-		kfi.SetLowGoreEnabled(settings.EnableLowGore.Value())
-	}
-
-	clientRate := 10000 // Default
+	// Special cases
+	clientRate := appsettings.DefaultMaxInternetClientRate
 	if settings.Uncap.Value() {
 		clientRate = 15000
 	}
-	if kfi.GetMaxInternetClientRate() != clientRate {
-		kfi.SetMaxInternetClientRate(clientRate)
+	if kfi.GetMaxInternetClientRate() != clientRate &&
+		!kfi.SetMaxInternetClientRate(clientRate) {
+		return fmt.Errorf("[Max Internet Client Rate]: failed to set the new value: %d", clientRate)
 	}
 
 	if err := updateConfigFileServerMutators(kfi, settings); err != nil {
-		return err
+		return fmt.Errorf("[Server Mutators]: %v", err)
 	}
 
 	if err := updateConfigFileMaplist(kfi, settings); err != nil {
-		return err
+		return fmt.Errorf("[Maplist]: %v", err)
 	}
 	return kfi.Save(kfiFilePath)
 }
 
 func updateKFPatcherConfigFile() error {
-	// TODO: Check returned values
 	kfpiFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "KFPatcherSettings.ini")
 	kfpi, err := config.NewKFPIniFile(kfpiFilePath)
 	if err != nil {
 		return err
 	}
 
-	settings := cmd.GetSettings()
-
-	if kfpi.IsZEDTimeEnabled() != !settings.KFPDisableZedTime.Value() {
-		kfpi.SetZEDTimeEnabled(!settings.KFPDisableZedTime.Value())
+	settings := appsettings.Get()
+	cuList := []configUpdater[any]{
+		newConfigUpdater(settings.KFPDisableZedTime.Name(), func() any { return kfpi.IsZEDTimeEnabled() }, func(v any) bool { return kfpi.SetZEDTimeEnabled(v.(bool)) }, !settings.KFPDisableZedTime.Value()),
+		newConfigUpdater(settings.KFPEnableAllTraders.Name(), func() any { return kfpi.IsAllTradersOpenEnabled() }, func(v any) bool { return kfpi.SetZEDTimeEnabled(v.(bool)) }, settings.KFPEnableAllTraders.Value()),
+		newConfigUpdater(settings.KFPAllTradersMessage.Name(), func() any { return kfpi.GetAllTradersMessage() }, func(v any) bool { return kfpi.SetAllTradersMessage(v.(string)) }, settings.KFPAllTradersMessage.Value()),
+		newConfigUpdater(settings.KFPBuyEverywhere.Name(), func() any { return kfpi.IsBuyEverywhereEnabled() }, func(v any) bool { return kfpi.SetBuyEverywhereEnabled(v.(bool)) }, settings.KFPBuyEverywhere.Value()),
 	}
-
-	if kfpi.IsAllTradersOpenEnabled() != settings.KFPEnableAllTraders.Value() {
-		kfpi.SetAllTradersOpenEnabled(settings.KFPEnableAllTraders.Value())
-	}
-
-	if kfpi.GetAllTradersMessage() != settings.KFPAllTradersMessage.Value() {
-		kfpi.SetAllTradersMessage(settings.KFPAllTradersMessage.Value())
-	}
-
-	if kfpi.IsBuyEverywhereEnabled() != settings.KFPBuyEverywhere.Value() {
-		kfpi.SetBuyEverywhereEnabled(settings.KFPBuyEverywhere.Value())
+	for _, conf := range cuList {
+		currentValue := conf.gv()
+		if currentValue != conf.nv && !conf.sv(conf.nv) {
+			return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+		}
 	}
 	return kfpi.Save(kfpiFilePath)
 }
 
 func readSteamCredentials() error {
-	settings := cmd.GetSettings()
+	defer func() {
+		_ = os.Unsetenv("STEAMACC_USERNAME")
+		_ = os.Unsetenv("STEAMACC_PASSWORD")
+	}()
+
+	settings := appsettings.Get()
 
 	// Read from Docker Secrets
 	secrets, err := secrets.Read("kfds")
@@ -349,8 +292,5 @@ func readSteamCredentials() error {
 	if settings.SteamLogin == "" || settings.SteamPassword == "" {
 		return fmt.Errorf("incomplete credentials: both STEAMACC_USERNAME and STEAMACC_PASSWORD must be provided")
 	}
-
-	os.Unsetenv("STEAMACC_USERNAME")
-	os.Unsetenv("STEAMACC_PASSWORD")
 	return nil
 }

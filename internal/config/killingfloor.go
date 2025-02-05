@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/K4rian/kfdsl/internal/config/ini"
+	"github.com/K4rian/kfdsl/internal/settings"
 )
 
 type KFIniFile struct {
@@ -24,115 +25,111 @@ func NewKFIniFile(filePath string) (*KFIniFile, error) {
 }
 
 func (kf *KFIniFile) GetServerName() string {
-	return kf.GetKey("Engine.GameReplicationInfo", "ServerName", "Killing Floor Server")
+	return kf.GetKey("Engine.GameReplicationInfo", "ServerName", settings.DefaultServerName)
 }
 
 func (kf *KFIniFile) GetShortName() string {
-	return kf.GetKey("Engine.GameReplicationInfo", "ShortName", "KF Server")
+	return kf.GetKey("Engine.GameReplicationInfo", "ShortName", settings.DefaultShortName)
 }
 
 func (kf *KFIniFile) GetGamePort() int {
-	return kf.GetKeyInt("URL", "Port", 7707)
+	return kf.GetKeyInt("URL", "Port", settings.DefaultGamePort)
 }
 
 func (kf *KFIniFile) GetWebAdminPort() int {
-	return kf.GetKeyInt("UWeb.WebServer", "ListenPort", 8075)
+	return kf.GetKeyInt("UWeb.WebServer", "ListenPort", settings.DefaultWebAdminPort)
 }
 
 func (kf *KFIniFile) GetGameSpyPort() int {
-	return kf.GetKeyInt("IpDrv.UdpGamespyQuery", "OldQueryPortNumber", 7717)
+	return kf.GetKeyInt("IpDrv.UdpGamespyQuery", "OldQueryPortNumber", settings.DefaultGameSpyPort)
 }
 
 func (kf *KFIniFile) GetGameDifficulty() int {
-	return kf.GetKeyInt("Engine.GameInfo", "GameDifficulty", 2)
+	return kf.GetKeyInt("Engine.GameInfo", "GameDifficulty", settings.DefaultInternalGameDifficulty)
 }
 
 func (kf *KFIniFile) GetGameLength() int {
-	return kf.GetKeyInt("KFMod.KFGameType", "KFGameLength", 0)
+	return kf.GetKeyInt("KFMod.KFGameType", "KFGameLength", settings.DefaultInternalGameLength)
 }
 
 func (kf *KFIniFile) GetFriendlyFireRate() float64 {
-	return kf.GetKeyFloat("KFMod.KFGameType", "FriendlyFireScale", 0.0)
+	return kf.GetKeyFloat("KFMod.KFGameType", "FriendlyFireScale", settings.DefaultFriendlyFire)
 }
 
 func (kf *KFIniFile) GetMaxPlayers() int {
-	return kf.GetKeyInt("Engine.GameInfo", "MaxPlayers", 6)
+	return kf.GetKeyInt("Engine.GameInfo", "MaxPlayers", settings.DefaultMaxPlayers)
 }
 
 func (kf *KFIniFile) GetMaxSpectators() int {
-	return kf.GetKeyInt("Engine.GameInfo", "MaxSpectators", 0)
+	return kf.GetKeyInt("Engine.GameInfo", "MaxSpectators", settings.DefaultMaxSpectators)
 }
 
 func (kf *KFIniFile) GetPassword() string {
-	return kf.GetKey("Engine.AccessControl", "GamePassword", "")
+	return kf.GetKey("Engine.AccessControl", "GamePassword", settings.DefaultPassword)
 }
 
 func (kf *KFIniFile) GetRegion() int {
-	return kf.GetKeyInt("Engine.GameReplicationInfo", "ServerRegion", 0)
+	return kf.GetKeyInt("Engine.GameReplicationInfo", "ServerRegion", settings.DefaultRegion)
 }
 
 func (kf *KFIniFile) GetAdminName() string {
-	return kf.GetKey("Engine.GameReplicationInfo", "AdminName", "")
+	return kf.GetKey("Engine.GameReplicationInfo", "AdminName", settings.DefaultAdminName)
 }
 
 func (kf *KFIniFile) GetAdminMail() string {
-	return kf.GetKey("Engine.GameReplicationInfo", "AdminEmail", "")
+	return kf.GetKey("Engine.GameReplicationInfo", "AdminEmail", settings.DefaultAdminMail)
 }
 
 func (kf *KFIniFile) GetAdminPassword() string {
-	return kf.GetKey("Engine.AccessControl", "AdminPassword", "")
+	return kf.GetKey("Engine.AccessControl", "AdminPassword", settings.DefaultAdminPassword)
 }
 
 func (kf *KFIniFile) GetMOTD() string {
-	return kf.GetKey("Engine.GameReplicationInfo", "MessageOfTheDay", "")
+	return kf.GetKey("Engine.GameReplicationInfo", "MessageOfTheDay", settings.DefaultMOTD)
 }
 
 func (kf *KFIniFile) GetSpecimenType() string {
-	return kf.GetKey("KFMod.KFGameType", "SpecialEventType", "ET_None")
+	return kf.GetKey("KFMod.KFGameType", "SpecialEventType", settings.DefaultInternalSpecimenType)
 }
 
 func (kf *KFIniFile) GetRedirectURL() string {
-	return kf.GetKey("IpDrv.HTTPDownload", "RedirectToURL", "")
+	return kf.GetKey("IpDrv.HTTPDownload", "RedirectToURL", settings.DefaultRedirectURL)
 }
 
 func (kf *KFIniFile) IsWebAdminEnabled() bool {
-	return kf.GetKeyBool("UWeb.WebServer", "bEnabled", false)
+	return kf.GetKeyBool("UWeb.WebServer", "bEnabled", settings.DefaultEnableWebAdmin)
 }
 
 func (kf *KFIniFile) IsMapVoteEnabled() bool {
-	return kf.GetKeyBool("xVoting.xVotingHandler", "bMapVote", false)
+	return kf.GetKeyBool("xVoting.xVotingHandler", "bMapVote", settings.DefaultEnableMapVote)
 }
 
 func (kf *KFIniFile) GetMapVoteRepeatLimit() int {
-	return kf.GetKeyInt("xVoting.xVotingHandler", "RepeatLimit", 1)
+	return kf.GetKeyInt("xVoting.xVotingHandler", "RepeatLimit", settings.DefaultMapVoteRepeatLimit)
 }
 
 func (kf *KFIniFile) IsAdminPauseEnabled() bool {
-	return kf.GetKeyBool("Engine.GameInfo", "bAdminCanPause", false)
+	return kf.GetKeyBool("Engine.GameInfo", "bAdminCanPause", settings.DefaultEnableAdminPause)
 }
 
 func (kf *KFIniFile) IsWeaponThrowingEnabled() bool {
-	return kf.GetKeyBool("Engine.GameInfo", "bAllowWeaponThrowing", true)
+	return kf.GetKeyBool("Engine.GameInfo", "bAllowWeaponThrowing", !settings.DefaultDisableWeaponThrow)
 }
 
 func (kf *KFIniFile) IsWeaponShakeEffectEnabled() bool {
-	return kf.GetKeyBool("Engine.GameInfo", "bWeaponShouldViewShake", true)
+	return kf.GetKeyBool("Engine.GameInfo", "bWeaponShouldViewShake", settings.DefaultDisableWeaponShake)
 }
 
 func (kf *KFIniFile) IsThirdPersonEnabled() bool {
-	return kf.GetKeyBool("Engine.GameInfo", "bAllowBehindView", false)
+	return kf.GetKeyBool("Engine.GameInfo", "bAllowBehindView", settings.DefaultEnableThirdPerson)
 }
 
 func (kf *KFIniFile) IsLowGoreEnabled() bool {
-	return kf.GetKeyBool("Engine.GameInfo", "bLowGore", false)
+	return kf.GetKeyBool("Engine.GameInfo", "bLowGore", settings.DefaultEnableLowGore)
 }
 
 func (kf *KFIniFile) GetMaxInternetClientRate() int {
-	return kf.GetKeyInt("IpDrv.TcpNetDriver", "MaxInternetClientRate", 10000)
-}
-
-func (kf *KFIniFile) IsFPSUncapped() bool {
-	return kf.GetMaxInternetClientRate() > 10000
+	return kf.GetKeyInt("IpDrv.TcpNetDriver", "MaxInternetClientRate", settings.DefaultMaxInternetClientRate)
 }
 
 // -----------------------

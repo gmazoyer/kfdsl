@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/K4rian/kfdsl/cmd"
+	"github.com/K4rian/kfdsl/internal/settings"
 	"github.com/K4rian/kfdsl/internal/utils"
 
 	"github.com/spf13/viper"
@@ -164,7 +164,7 @@ func (s *KFServer) IsPresent() bool {
 
 func (s *KFServer) buildCommandLine() []string {
 	executable := path.Join(s.rootDir, "System", "ucc-bin")
-	settings := cmd.GetSettings()
+	settings := settings.Get()
 	argsStr := fmt.Sprintf(
 		"%s.rom?game=%s?VACSecured=%t?MaxPlayers=%s",
 		settings.StartupMap,

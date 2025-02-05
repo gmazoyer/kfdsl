@@ -1,4 +1,4 @@
-package cmd
+package settings
 
 import (
 	"fmt"
@@ -125,43 +125,8 @@ func (s *KFDSLSettings) Print() {
 	fmt.Println("=====================================================")
 }
 
-const (
-	defaultServerName         = "KF Server"
-	defaultShortName          = "KFS"
-	defaultPort               = 7707
-	defaultWebAdminPort       = 8075
-	defaultGameSpyPort        = 7717
-	defaultGameMode           = "KFmod.KFGameType"
-	defaultStartMap           = "KF-BioticsLab"
-	defaultDifficulty         = "hard"
-	defaultLength             = "medium"
-	defaultFriendlyFire       = 0.0
-	defaultMaxPlayers         = 6
-	defaultMaxSpectators      = 6
-	defaultServerRegion       = 0
-	defaultSpecimentType      = "default"
-	defaultMaplist            = "all"
-	defaultMapVoteRepeatLimit = 1
-)
+var settings = &KFDSLSettings{}
 
-const (
-	defaultRedirectServerHost        = "0.0.0.0"
-	defaultRedirectServerPort        = 9090
-	defaultRedirectServerDir         = "./redirect"
-	defaultRedirectServerMaxRequests = 20 // per minute
-	defaultRedirectServerBanTime     = 15 // in minutes
-)
-
-const (
-	defaultKFPAllTradersMessage = "\"^wAll traders are ^ropen^w!\""
-)
-
-const (
-	defaultSteamLogin = "anonymous"
-)
-
-var settings *KFDSLSettings
-
-func GetSettings() *KFDSLSettings {
+func Get() *KFDSLSettings {
 	return settings
 }
