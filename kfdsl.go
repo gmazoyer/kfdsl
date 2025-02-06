@@ -98,7 +98,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 	}
 
 	fmt.Printf("> Starting the Killing Floor Server...\n")
-	if err := gameServer.Start(); err != nil {
+	if err := gameServer.Start(sett.AutoRestart.Value()); err != nil {
 		return nil, fmt.Errorf("failed to start the Killing Floor Dedicated Server: %v", err)
 	}
 	return gameServer, nil

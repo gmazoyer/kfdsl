@@ -38,7 +38,7 @@ func (s *KFServer) RootDirectory() string {
 	return s.rootDir
 }
 
-func (s *KFServer) Start() error {
+func (s *KFServer) Start(autoRestart bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -52,25 +52,55 @@ func (s *KFServer) Start() error {
 
 	cmdLine := s.buildCommandLine()
 
-	cmd := exec.CommandContext(s.ctx, cmdLine[0], cmdLine[1:]...)
-	cmd.Dir = path.Join(s.rootDir, "System")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start: %v", err)
-	}
-	s.cmd = cmd
-
 	go func() {
-		defer s.cancel()
+		restartDelay := time.Second
+		maxDelay := 10 * time.Second
 
-		if err := cmd.Wait(); err != nil {
-			s.execErr = fmt.Errorf("process exited with error: %v", err)
+		for {
+			// Stop restarting if the context is canceled
+			if s.ctx.Err() != nil {
+				return
+			}
+
+			s.mu.Lock()
+			cmd := exec.CommandContext(s.ctx, cmdLine[0], cmdLine[1:]...)
+			cmd.Dir = path.Join(s.rootDir, "System")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			s.cmd = cmd
+			s.mu.Unlock()
+
+			if err := cmd.Start(); err != nil {
+				s.execErr = err
+				return
+			}
+
+			if err := cmd.Wait(); err != nil {
+				s.execErr = fmt.Errorf("process exited with error: %v", err)
+			}
+
+			s.mu.Lock()
+			s.cmd = nil
+			s.mu.Unlock()
+
+			// Stop restarting if the context is canceled
+			if s.ctx.Err() != nil {
+				return
+			}
+
+			if !autoRestart {
+				return
+			}
+
+			fmt.Printf("> Restarting the Killing Floor Server in %v...\n", restartDelay)
+			time.Sleep(restartDelay)
+
+			// Exponential backoff (capped at maxDelay)
+			restartDelay *= 2
+			if restartDelay > maxDelay {
+				restartDelay = maxDelay
+			}
 		}
-		s.mu.Lock()
-		s.cmd = nil
-		s.mu.Unlock()
 	}()
 	return nil
 }
@@ -116,28 +146,6 @@ func (s *KFServer) Stop() error {
 		}
 	}
 	s.cmd = nil
-	return nil
-}
-
-func (s *KFServer) Restart(milliseconds ...int) error {
-	if err := s.ctx.Err(); err != nil {
-		// The context has already been cancelled
-		return nil
-	}
-
-	if err := s.Stop(); err != nil {
-		return err
-	}
-
-	delay := 100
-	if len(milliseconds) > 0 {
-		delay = milliseconds[0]
-	}
-	time.Sleep(time.Duration(delay) * time.Millisecond)
-
-	if err := s.Start(); err != nil {
-		return err
-	}
 	return nil
 }
 
