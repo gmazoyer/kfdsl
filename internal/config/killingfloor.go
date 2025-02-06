@@ -269,7 +269,7 @@ func (kf *KFIniFile) SetMaxInternetClientRate(rate int) bool {
 
 func (kf *KFIniFile) ClearServerMutators() error {
 	section, key := "Engine.GameEngine", "ServerActors"
-	actors := kf.GetAllKeys(section, key)
+	actors := kf.GetKeys(section, key)
 	for index, actor := range actors {
 		act := strings.TrimSpace(actor)
 		if act != "IpDrv.MasterServerUplink" && act != "UWeb.WebServer" { // Ignore Base Actors
@@ -297,7 +297,7 @@ func (kf *KFIniFile) ClearMaplist(sectionName string) error {
 	section := kf.GetSection(sectionName)
 	if section != nil {
 		section.DeleteKey("Maps")
-		if len(section.GetAllKeys("Maps")) > 0 {
+		if len(section.GetKeys("Maps")) > 0 {
 			return fmt.Errorf("unable to clear the maplist: %s", sectionName)
 		}
 	}

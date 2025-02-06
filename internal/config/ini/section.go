@@ -5,6 +5,25 @@ type IniSection struct {
 	Keys []*IniKey // Slice to maintain order and support duplicates
 }
 
+func (s *IniSection) GetKey(name string) (string, bool) {
+	for _, key := range s.Keys {
+		if key.Name == name {
+			return key.Value, true
+		}
+	}
+	return "", false
+}
+
+func (s *IniSection) GetKeys(name string) []string {
+	var values []string
+	for _, key := range s.Keys {
+		if key.Name == name {
+			values = append(values, key.Value)
+		}
+	}
+	return values
+}
+
 func (s *IniSection) AddKey(name, value string) {
 	s.Keys = append(s.Keys, &IniKey{Name: name, Value: value})
 	s.recalculateIndices()
@@ -17,25 +36,6 @@ func (s *IniSection) AddUniqueKey(name, value string) {
 		}
 	}
 	s.AddKey(name, value)
-}
-
-func (s *IniSection) GetKey(name string) (string, bool) {
-	for _, key := range s.Keys {
-		if key.Name == name {
-			return key.Value, true
-		}
-	}
-	return "", false
-}
-
-func (s *IniSection) GetAllKeys(name string) []string {
-	var values []string
-	for _, key := range s.Keys {
-		if key.Name == name {
-			values = append(values, key.Value)
-		}
-	}
-	return values
 }
 
 func (s *IniSection) DeleteKey(name string) {

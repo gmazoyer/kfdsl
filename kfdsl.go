@@ -17,6 +17,7 @@ import (
 	"github.com/K4rian/kfdsl/internal/services/redirectserver"
 	"github.com/K4rian/kfdsl/internal/services/steamcmd"
 	"github.com/K4rian/kfdsl/internal/settings"
+	"github.com/K4rian/kfdsl/internal/utils"
 )
 
 type configUpdater[T any] struct {
@@ -79,7 +80,24 @@ func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 }
 
 func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserver.KFServer, error) {
-	gameServer := kfserver.NewKFServer(viper.GetString("STEAMCMD_APPINSTALLDIR"), ctx)
+	mutators := sett.Mutators.Value()
+	if sett.EnableMutLoader.Value() {
+		mutators = "MutLoader.MutLoader"
+	}
+
+	rootDir := viper.GetString("STEAMCMD_APPINSTALLDIR")
+	extraArgs := viper.GetStringSlice("KF_EXTRAARGS")
+
+	gameServer := kfserver.NewKFServer(
+		rootDir,
+		sett.StartupMap.Value(),
+		sett.GameMode.Value(),
+		sett.Unsecure.Value(),
+		sett.MaxPlayers.Value(),
+		mutators,
+		extraArgs,
+		ctx,
+	)
 
 	if !gameServer.IsPresent() {
 		return nil, fmt.Errorf("unable to locate the Killing Floor Dedicated Server files in '%s', please install using SteamCMD", gameServer.RootDirectory())
@@ -94,6 +112,20 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		fmt.Printf("> Updating the KFPatcher configuration file...\n")
 		if err := updateKFPatcherConfigFile(sett); err != nil {
 			return nil, fmt.Errorf("failed to update the KFPatcherSettings.ini configuration file: %v", err)
+		}
+	}
+
+	fmt.Printf("> Checking the Killing Floor Server Steam libraries for update...\n")
+	updatedLibs, err := updateGameServerSteamLibs()
+	if err != nil {
+		fmt.Printf("Unable to update the server Steam libraries: %v\n", err)
+	} else {
+		if len(updatedLibs) > 0 {
+			for _, lib := range updatedLibs {
+				fmt.Printf("Steam library '%s' successfully updated\n", lib)
+			}
+		} else {
+			fmt.Printf("All server Steam libraries are up-to-date\n")
 		}
 	}
 
@@ -255,33 +287,65 @@ func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
 	return kfpi.Save(kfpiFilePath)
 }
 
+func updateGameServerSteamLibs() ([]string, error) {
+	ret := []string{}
+	rootDir := viper.GetString("STEAMCMD_APPINSTALLDIR")
+	systemDir := path.Join(rootDir, "System")
+	libsDir := path.Join(viper.GetString("STEAMCMD_ROOT"), "linux32")
+
+	libs := map[string]string{
+		path.Join(libsDir, "steamclient.so"):  path.Join(systemDir, "steamclient.so"),
+		path.Join(libsDir, "libtier0_s.so"):   path.Join(systemDir, "libtier0_s.so"),
+		path.Join(libsDir, "libvstdlib_s.so"): path.Join(systemDir, "libvstdlib_s.so"),
+	}
+
+	for srcFile, dstFile := range libs {
+		identical, err := utils.SHA1Compare(srcFile, dstFile)
+		if err != nil {
+			return ret, fmt.Errorf("error comparing files %s and %s: %v", srcFile, dstFile, err)
+		}
+
+		if !identical {
+			if err := utils.CopyAndReplaceFile(srcFile, dstFile); err != nil {
+				return ret, err
+			}
+			ret = append(ret, dstFile)
+		}
+	}
+	return ret, nil
+}
+
 func readSteamCredentials(sett *settings.KFDSLSettings) error {
+	var fromEnv bool
+
 	defer func() {
-		_ = os.Unsetenv("STEAMACC_USERNAME")
-		_ = os.Unsetenv("STEAMACC_PASSWORD")
+		if fromEnv {
+			_ = os.Unsetenv("STEAMACC_USERNAME")
+			_ = os.Unsetenv("STEAMACC_PASSWORD")
+		}
 	}()
 
-	// Read from Docker Secrets
-	secrets, err := secrets.Read("kfds")
-	if err == nil {
-		username, ok := secrets["STEAMACC_USERNAME"]
-		if !ok {
-			return fmt.Errorf("steam account username (STEAMACC_USERNAME) not found in Docker secret")
-		}
-		password, ok := secrets["STEAMACC_PASSWORD"]
-		if !ok {
-			return fmt.Errorf("steam account password (STEAMACC_PASSWORD) not found in Docker secret")
-		}
-		sett.SteamLogin = username
-		sett.SteamPassword = password
-	} else {
-		// Read from environment variables
-		sett.SteamLogin = viper.GetString("STEAMACC_USERNAME")
-		sett.SteamPassword = viper.GetString("STEAMACC_PASSWORD")
+	// Try reading from Docker Secrets
+	steamUsername, errUser := secrets.Read("STEAMACC_USERNAME")
+	steamPassword, errPass := secrets.Read("STEAMACC_PASSWORD")
+
+	// Fallback to environment variables if secrets are missing
+	if errUser != nil {
+		steamUsername = viper.GetString("STEAMACC_USERNAME")
+		fromEnv = true
+	}
+	if errPass != nil {
+		steamPassword = viper.GetString("STEAMACC_PASSWORD")
+		fromEnv = true
 	}
 
-	if sett.SteamLogin == "" || sett.SteamPassword == "" {
+	// Ensure both credentials are present
+	if steamUsername == "" || steamPassword == "" {
 		return fmt.Errorf("incomplete credentials: both STEAMACC_USERNAME and STEAMACC_PASSWORD must be provided")
 	}
+
+	// Update the settings
+	sett.SteamLogin = steamUsername
+	sett.SteamPassword = steamPassword
 	return nil
 }

@@ -64,9 +64,11 @@ func main() {
 		}
 	}
 
-	var gameServer *kfserver.KFServer
-	var redirectServer *redirectserver.HTTPRedirectServer
-	var err error
+	var (
+		gameServer     *kfserver.KFServer
+		redirectServer *redirectserver.HTTPRedirectServer
+		err            error
+	)
 
 	defer shutdown(cancel, redirectServer, gameServer)
 

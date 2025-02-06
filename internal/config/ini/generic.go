@@ -22,6 +22,13 @@ func NewGenericIniFile() *GenericIniFile {
 	}
 }
 
+func (f *GenericIniFile) GetSection(name string) *IniSection {
+	if idx, exists := f.SectionMap[name]; exists {
+		return f.Sections[idx]
+	}
+	return nil
+}
+
 func (f *GenericIniFile) AddSection(name string) *IniSection {
 	if idx, exists := f.SectionMap[name]; exists {
 		return f.Sections[idx]
@@ -46,13 +53,6 @@ func (f *GenericIniFile) DeleteSection(name string) bool {
 		}
 	}
 	return f.GetSection(name) == nil
-}
-
-func (f *GenericIniFile) GetSection(name string) *IniSection {
-	if idx, exists := f.SectionMap[name]; exists {
-		return f.Sections[idx]
-	}
-	return nil
 }
 
 func (f *GenericIniFile) GetKey(section string, key string, defvalue string) string {
@@ -92,10 +92,10 @@ func (f *GenericIniFile) GetKeyFloat(section string, key string, defvalue float6
 	return defvalue
 }
 
-func (f *GenericIniFile) GetAllKeys(section string, key string) []string {
+func (f *GenericIniFile) GetKeys(section string, key string) []string {
 	sect := f.GetSection(section)
 	if sect != nil {
-		return sect.GetAllKeys(key)
+		return sect.GetKeys(key)
 	}
 	return nil
 }
@@ -129,9 +129,9 @@ func (f *GenericIniFile) DeleteKey(section string, key string) bool {
 func (f *GenericIniFile) DeleteUniqueKey(section string, key string, targetValue *string, targetIndex *int) bool {
 	sect := f.GetSection(section)
 	if sect != nil {
-		keyCountBefore := len(sect.GetAllKeys(key))
+		keyCountBefore := len(sect.GetKeys(key))
 		sect.DeleteUniqueKey(key, targetValue, targetIndex)
-		keyCountAfter := len(sect.GetAllKeys(key))
+		keyCountAfter := len(sect.GetKeys(key))
 		return keyCountAfter == (keyCountBefore - 1)
 	}
 	return false
@@ -223,7 +223,7 @@ func (f *GenericIniFile) setInterface(section string, key string, value interfac
 		_, isSet = sect.GetKey(key)
 	} else {
 		sect.SetKey(key, valueStr)
-		allKeys := sect.GetAllKeys(key)
+		allKeys := sect.GetKeys(key)
 		isSet = slices.Contains(allKeys, valueStr)
 	}
 	return isSet
