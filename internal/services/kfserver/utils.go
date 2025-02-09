@@ -30,7 +30,7 @@ func GetGameModeMapPrefix(gamemode string) string {
 		"objective": "KFO-",
 		"toymaster": "TOY-",
 	}
-	return modes[gamemode]
+	return modes[strings.ToLower(gamemode)]
 }
 
 func GetGameModeMaplistName(gamemode string) string {
@@ -39,7 +39,7 @@ func GetGameModeMaplistName(gamemode string) string {
 		"objective": "KFStoryGame.KFOMapList",
 		"toymaster": "KFCharPuppets.TOYMapList",
 	}
-	return mlist[gamemode]
+	return mlist[strings.ToLower(gamemode)]
 }
 
 func GetSeasonalSpecimenType() string {
