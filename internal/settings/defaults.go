@@ -6,7 +6,7 @@ const (
 	DefaultGamePort                  = 7707
 	DefaultWebAdminPort              = 8075
 	DefaultGameSpyPort               = 7717
-	DefaultGameMode                  = "KFmod.KFGameType"
+	DefaultGameMode                  = "survival"
 	DefaultStartupMap                = "KF-BioticsLab"
 	DefaultGameDifficulty            = "hard"
 	DefaultGameLength                = "medium"
