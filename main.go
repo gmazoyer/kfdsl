@@ -5,40 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/K4rian/kfdsl/cmd"
 	"github.com/K4rian/kfdsl/internal/services/kfserver"
-	"github.com/K4rian/kfdsl/internal/services/redirectserver"
 	"github.com/K4rian/kfdsl/internal/settings"
 )
-
-func shutdown(cancel context.CancelFunc, redirectServer *redirectserver.HTTPRedirectServer, gameServer *kfserver.KFServer) {
-	fmt.Println("\nShutting down all services...")
-	cancel()
-
-	var wg sync.WaitGroup
-
-	if redirectServer != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			redirectServer.Stop()
-		}()
-	}
-
-	if gameServer != nil && gameServer.IsRunning() {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			gameServer.Wait()
-		}()
-	}
-
-	wg.Wait()
-	fmt.Println("All services have been stopped.")
-}
 
 func main() {
 	// Build the root command and execute it
@@ -64,31 +36,27 @@ func main() {
 		}
 	}
 
-	var (
-		gameServer     *kfserver.KFServer
-		redirectServer *redirectserver.HTTPRedirectServer
-		err            error
-	)
+	var server *kfserver.KFServer
+	var err error
 
-	defer shutdown(cancel, redirectServer, gameServer)
+	defer func() {
+		fmt.Println("\nShutting down the server...")
+		cancel()
+
+		if server != nil && server.IsRunning() {
+			server.Wait()
+		}
+
+		fmt.Println("The server has been stopped.")
+	}()
 
 	// Start the Killing Floor Dedicated Server
-	gameServer, err = startGameServer(sett, ctx)
+	server, err = startGameServer(sett, ctx)
 	if err != nil {
 		fmt.Printf("ERROR: [KFServer]: %v\n", err)
 		return
 	}
-	fmt.Printf("> Killing Floor Server started from '%s'\n", gameServer.RootDirectory())
-
-	// Start the HTTP Redirect Server, if enabled
-	if sett.EnableRedirectServer.Value() {
-		redirectServer, err = startRedirectServer(sett, ctx)
-		if err != nil {
-			fmt.Printf("ERROR: [RedirectServer]: %v\n", err)
-			return
-		}
-		fmt.Printf("> HTTP Redirect Server serving '%s' on %s\n", redirectServer.RootDirectory(), redirectServer.Host())
-	}
+	fmt.Printf("> Killing Floor Server started from '%s'\n", server.RootDirectory())
 
 	<-signalChan
 }

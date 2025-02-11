@@ -24,71 +24,65 @@ func BuildRootCommand() *cobra.Command {
 
 	var serverName, shortName, gameMode, startupMap, gameDifficulty, gameLength,
 		password, adminName, adminMail, adminPassword, motd, specimenType, mutators,
-		serverMutators, redirectURL, mapList, redirectHost, redirectDir, allTradersMessage string
+		serverMutators, redirectURL, mapList, allTradersMessage string
 
 	var gamePort, webadminPort, gamespyPort, maxPlayers, maxSpectators, region,
-		mapVoteRepeatLimit, redirectPort, redirectMaxRequests, redirectBanTime int
+		mapVoteRepeatLimit int
 
 	var friendlyFire float64
 
 	var enableWebAdmin, enableMapVote, enableAdminPause, disableWeaponThrow,
 		disableWeaponShake, enableThirdPerson, enableLowGore, uncap, unsecure, noSteam,
-		disableValidation, enableAutoRestart, enableRedirectServer, enableMutloader,
-		enableKFPatcher, disableZEDTime, enableBuyEverywhere, enableAllTraders bool
+		disableValidation, enableAutoRestart, enableMutloader, enableKFPatcher, disableZEDTime,
+		enableBuyEverywhere, enableAllTraders bool
 
 	flags := map[string]struct {
 		Value   interface{}
 		Desc    string
 		Default interface{}
 	}{
-		"servername":                 {&serverName, "server name", appsettings.DefaultServerName},
-		"shortname":                  {&shortName, "server short name", appsettings.DefaultShortName},
-		"port":                       {&gamePort, "game UDP port", appsettings.DefaultGamePort},
-		"webadminport":               {&webadminPort, "WebAdmin TCP port", appsettings.DefaultWebAdminPort},
-		"gamespyport":                {&gamespyPort, "GameSpy UDP port", appsettings.DefaultGameSpyPort},
-		"gamemode":                   {&gameMode, "game mode", appsettings.DefaultGameMode},
-		"map":                        {&startupMap, "starting map", appsettings.DefaultStartupMap},
-		"difficulty":                 {&gameDifficulty, "game difficulty (easy, normal, hard, suicidal, hell)", appsettings.DefaultGameDifficulty},
-		"length":                     {&gameLength, "game length (waves) (short, medium, long)", appsettings.DefaultGameLength},
-		"friendlyfire":               {&friendlyFire, "friendly fire rate (0.0-1.0)", appsettings.DefaultFriendlyFire},
-		"maxplayers":                 {&maxPlayers, "maximum players", appsettings.DefaultMaxPlayers},
-		"maxspectators":              {&maxSpectators, "maximum spectators", appsettings.DefaultMaxSpectators},
-		"password":                   {&password, "server password", appsettings.DefaultPassword},
-		"region":                     {&region, "server region", appsettings.DefaultRegion},
-		"adminname":                  {&adminName, "server administrator name", appsettings.DefaultAdminName},
-		"adminmail":                  {&adminMail, "server administrator email", appsettings.DefaultAdminMail},
-		"adminpassword":              {&adminPassword, "server administrator password", appsettings.DefaultAdminPassword},
-		"motd":                       {&motd, "message of the day", appsettings.DefaultMOTD},
-		"specimentype":               {&specimenType, "specimen type (default, summer, halloween, christmas)", appsettings.DefaultSpecimenType},
-		"mutators":                   {&mutators, "comma-separated mutators (command-line)", appsettings.DefaultMutators},
-		"servermutators":             {&serverMutators, "comma-separated mutators (server actors)", appsettings.DefaultServerMutators},
-		"redirecturl":                {&redirectURL, "redirect URL", appsettings.DefaultRedirectURL},
-		"maplist":                    {&mapList, "comma-separated maps for the current game mode. Use 'all' to append all available map", appsettings.DefaultMaplist},
-		"webadmin":                   {&enableWebAdmin, "enable WebAdmin panel", appsettings.DefaultEnableWebAdmin},
-		"mapvote":                    {&enableMapVote, "enable map voting", appsettings.DefaultEnableMapVote},
-		"mapvote-repeatlimit":        {&mapVoteRepeatLimit, "number of maps to be played before a map can repeat", appsettings.DefaultMapVoteRepeatLimit},
-		"adminpause":                 {&enableAdminPause, "allow admin to pause game", appsettings.DefaultEnableAdminPause},
-		"noweaponthrow":              {&disableWeaponThrow, "disable weapon throwing", appsettings.DefaultDisableWeaponThrow},
-		"noweaponshake":              {&disableWeaponShake, "disable weapon-induced screen shake", appsettings.DefaultDisableWeaponShake},
-		"thirdperson":                {&enableThirdPerson, "enable third-person view", appsettings.DefaultEnableThirdPerson},
-		"lowgore":                    {&enableLowGore, "reduce gore", appsettings.DefaultEnableLowGore},
-		"uncap":                      {&uncap, "uncap the frame rate", appsettings.DefaultUncap},
-		"unsecure":                   {&unsecure, "disable VAC (Valve Anti-Cheat)", appsettings.DefaultUnsecure},
-		"nosteam":                    {&noSteam, "start the server without calling SteamCMD", appsettings.DefaultNoSteam},
-		"novalidate":                 {&disableValidation, "skip server files integrity check", appsettings.DefaultNoValidate},
-		"autorestart":                {&enableAutoRestart, "restart server on crash", appsettings.DefaultAutoRestart},
-		"redirectserver":             {&enableRedirectServer, "enable the HTTP Redirect Server", appsettings.DefaultEnableRedirectServer},
-		"redirectserver-host":        {&redirectHost, "HTTP Redirect Server IP/Host", appsettings.DefaultRedirectServerHost},
-		"redirectserver-port":        {&redirectPort, "HTTP Redirect Server TCP port", appsettings.DefaultRedirectServerPort},
-		"redirectserver-dir":         {&redirectDir, "HTTP Redirect Server root directory", appsettings.DefaultRedirectServerDir},
-		"redirectserver-maxrequests": {&redirectMaxRequests, "HTTP Redirect Server max requests per IP/minute", appsettings.DefaultRedirectServerMaxRequests},
-		"redirectserver-bantime":     {&redirectBanTime, "HTTP Redirect Server ban duration (in minutes)", appsettings.DefaultRedirectServerBanTime},
-		"mutloader":                  {&enableMutloader, "enable MutLoader (override inline mutators)", appsettings.DefaultEnableMutLoader},
-		"kfpatcher":                  {&enableKFPatcher, "enable KFPatcher", appsettings.DefaultEnableKFPatcher},
-		"nozedtime":                  {&disableZEDTime, "(KFPatcher) disable ZED time", appsettings.DefaultKFPDisableZedTime},
-		"buyeverywhere":              {&enableBuyEverywhere, "(KFPatcher) allow players to shop whenever", appsettings.DefaultKFPBuyEverywhere},
-		"alltraders":                 {&enableAllTraders, "(KFPatcher) make all trader's spots accessible", appsettings.DefaultKFPEnableAllTraders},
-		"alltraders-message":         {&allTradersMessage, "(KFPatcher) All traders screen message", appsettings.DefaultKFPAllTradersMessage},
+		"servername":          {&serverName, "server name", appsettings.DefaultServerName},
+		"shortname":           {&shortName, "server short name", appsettings.DefaultShortName},
+		"port":                {&gamePort, "game UDP port", appsettings.DefaultGamePort},
+		"webadminport":        {&webadminPort, "WebAdmin TCP port", appsettings.DefaultWebAdminPort},
+		"gamespyport":         {&gamespyPort, "GameSpy UDP port", appsettings.DefaultGameSpyPort},
+		"gamemode":            {&gameMode, "game mode", appsettings.DefaultGameMode},
+		"map":                 {&startupMap, "starting map", appsettings.DefaultStartupMap},
+		"difficulty":          {&gameDifficulty, "game difficulty (easy, normal, hard, suicidal, hell)", appsettings.DefaultGameDifficulty},
+		"length":              {&gameLength, "game length (waves) (short, medium, long)", appsettings.DefaultGameLength},
+		"friendlyfire":        {&friendlyFire, "friendly fire rate (0.0-1.0)", appsettings.DefaultFriendlyFire},
+		"maxplayers":          {&maxPlayers, "maximum players", appsettings.DefaultMaxPlayers},
+		"maxspectators":       {&maxSpectators, "maximum spectators", appsettings.DefaultMaxSpectators},
+		"password":            {&password, "server password", appsettings.DefaultPassword},
+		"region":              {&region, "server region", appsettings.DefaultRegion},
+		"adminname":           {&adminName, "server administrator name", appsettings.DefaultAdminName},
+		"adminmail":           {&adminMail, "server administrator email", appsettings.DefaultAdminMail},
+		"adminpassword":       {&adminPassword, "server administrator password", appsettings.DefaultAdminPassword},
+		"motd":                {&motd, "message of the day", appsettings.DefaultMOTD},
+		"specimentype":        {&specimenType, "specimen type (default, summer, halloween, christmas)", appsettings.DefaultSpecimenType},
+		"mutators":            {&mutators, "comma-separated mutators (command-line)", appsettings.DefaultMutators},
+		"servermutators":      {&serverMutators, "comma-separated mutators (server actors)", appsettings.DefaultServerMutators},
+		"redirecturl":         {&redirectURL, "redirect URL", appsettings.DefaultRedirectURL},
+		"maplist":             {&mapList, "comma-separated maps for the current game mode. Use 'all' to append all available map", appsettings.DefaultMaplist},
+		"webadmin":            {&enableWebAdmin, "enable WebAdmin panel", appsettings.DefaultEnableWebAdmin},
+		"mapvote":             {&enableMapVote, "enable map voting", appsettings.DefaultEnableMapVote},
+		"mapvote-repeatlimit": {&mapVoteRepeatLimit, "number of maps to be played before a map can repeat", appsettings.DefaultMapVoteRepeatLimit},
+		"adminpause":          {&enableAdminPause, "allow admin to pause game", appsettings.DefaultEnableAdminPause},
+		"noweaponthrow":       {&disableWeaponThrow, "disable weapon throwing", appsettings.DefaultDisableWeaponThrow},
+		"noweaponshake":       {&disableWeaponShake, "disable weapon-induced screen shake", appsettings.DefaultDisableWeaponShake},
+		"thirdperson":         {&enableThirdPerson, "enable third-person view", appsettings.DefaultEnableThirdPerson},
+		"lowgore":             {&enableLowGore, "reduce gore", appsettings.DefaultEnableLowGore},
+		"uncap":               {&uncap, "uncap the frame rate", appsettings.DefaultUncap},
+		"unsecure":            {&unsecure, "disable VAC (Valve Anti-Cheat)", appsettings.DefaultUnsecure},
+		"nosteam":             {&noSteam, "start the server without calling SteamCMD", appsettings.DefaultNoSteam},
+		"novalidate":          {&disableValidation, "skip server files integrity check", appsettings.DefaultNoValidate},
+		"autorestart":         {&enableAutoRestart, "restart server on crash", appsettings.DefaultAutoRestart},
+		"mutloader":           {&enableMutloader, "enable MutLoader (override inline mutators)", appsettings.DefaultEnableMutLoader},
+		"kfpatcher":           {&enableKFPatcher, "enable KFPatcher", appsettings.DefaultEnableKFPatcher},
+		"nozedtime":           {&disableZEDTime, "(KFPatcher) disable ZED time", appsettings.DefaultKFPDisableZedTime},
+		"buyeverywhere":       {&enableBuyEverywhere, "(KFPatcher) allow players to shop whenever", appsettings.DefaultKFPBuyEverywhere},
+		"alltraders":          {&enableAllTraders, "(KFPatcher) make all trader's spots accessible", appsettings.DefaultKFPEnableAllTraders},
+		"alltraders-message":  {&allTradersMessage, "(KFPatcher) All traders screen message", appsettings.DefaultKFPAllTradersMessage},
 	}
 
 	for flag, data := range flags {
@@ -177,12 +171,6 @@ func registerArguments(settings *appsettings.KFDSLSettings) {
 	settings.NoSteam = arguments.NewArgument[bool](viper.GetBool("nosteam"), "Skip SteamCMD", nil, arguments.FormatBool, false)
 	settings.NoValidate = arguments.NewArgument[bool](viper.GetBool("novalidate"), "Files Validation", nil, arguments.FormatBool, false)
 	settings.AutoRestart = arguments.NewArgument[bool](viper.GetBool("autorestart"), "Server Auto Restart", nil, arguments.FormatBool, false)
-	settings.EnableRedirectServer = arguments.NewArgument[bool](viper.GetBool("redirectserver"), "Redirect Server", nil, arguments.FormatBool, false)
-	settings.RedirectServerHost = arguments.NewArgument[string](viper.GetString("redirectserver-host"), "Redirect Server Host", arguments.ParseIP, nil, false)
-	settings.RedirectServerPort = arguments.NewArgument[int](viper.GetInt("redirectserver-port"), "Redirect Server Port", arguments.ParsePort(viper.GetInt("redirectserver-port"), "Redirect Server Port"), nil, false)
-	settings.RedirectServerDir = arguments.NewArgument[string](viper.GetString("redirectserver-dir"), "Redirect Server Root", arguments.ParseExistingDir, nil, false)
-	settings.RedirectServerMaxRequests = arguments.NewArgument[int](viper.GetInt("redirectserver-maxrequests"), "Redirect Server Max Req.", arguments.ParseUnsignedInt(viper.GetInt("redirectserver-maxrequests"), "Redirect Server Max Req."), nil, false)
-	settings.RedirectServerBanTime = arguments.NewArgument[int](viper.GetInt("redirectserver-bantime"), "Redirect Server Ban Time", arguments.ParseUnsignedInt(viper.GetInt("redirectserver-bantime"), "Redirect Server Ban Time"), nil, false)
 	settings.EnableMutLoader = arguments.NewArgument[bool](viper.GetBool("mutloader"), "MutLoader", nil, arguments.FormatBool, false)
 	settings.EnableKFPatcher = arguments.NewArgument[bool](viper.GetBool("kfpatcher"), "KFPatcher", nil, arguments.FormatBool, false)
 	settings.KFPDisableZedTime = arguments.NewArgument[bool](viper.GetBool("nozedtime"), "KFP Disable ZED Time", nil, arguments.FormatBool, false)

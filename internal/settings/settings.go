@@ -8,57 +8,51 @@ import (
 )
 
 type KFDSLSettings struct {
-	ServerName                *arguments.Argument[string]  // Server Name
-	ShortName                 *arguments.Argument[string]  // Server Alias
-	GamePort                  *arguments.Argument[int]     // Port
-	WebAdminPort              *arguments.Argument[int]     // Web Admin Panel Port
-	GameSpyPort               *arguments.Argument[int]     // GameSpy Port
-	GameMode                  *arguments.Argument[string]  // Game Mode to use (Survival, Objective, Toy Master or Custom)
-	StartupMap                *arguments.Argument[string]  // Starting map
-	GameDifficulty            *arguments.Argument[int]     // Game Difficulty
-	GameLength                *arguments.Argument[int]     // Game Length
-	FriendlyFire              *arguments.Argument[float64] // Friendly Fire Rate
-	MaxPlayers                *arguments.Argument[int]     // Maximum Players
-	MaxSpectators             *arguments.Argument[int]     // Maximum Spectators
-	Password                  *arguments.Argument[string]  // Server Password
-	Region                    *arguments.Argument[int]     // Server Region
-	AdminName                 *arguments.Argument[string]  // Administrator Name
-	AdminMail                 *arguments.Argument[string]  // Administrator Email address
-	AdminPassword             *arguments.Argument[string]  // Administrator Password
-	MOTD                      *arguments.Argument[string]  // Message of the Day
-	SpecimenType              *arguments.Argument[string]  // Specimen type to use
-	Mutators                  *arguments.Argument[string]  // Mutators list (Command-line)
-	ServerMutators            *arguments.Argument[string]  // Mutators list (ServerActors)
-	RedirectURL               *arguments.Argument[string]  // Redirection URL (extra content)
-	Maplist                   *arguments.Argument[string]  // Map list
-	EnableWebAdmin            *arguments.Argument[bool]    // Enable the Web Admin Panel
-	EnableMapVote             *arguments.Argument[bool]    // Enable Map voting
-	MapVoteRepeatLimit        *arguments.Argument[int]     // Map vote repeat limit (number of maps to be played before a map can repeat)
-	EnableAdminPause          *arguments.Argument[bool]    // Allow the administrator(s) to pause the game
-	DisableWeaponThrow        *arguments.Argument[bool]    // Prevent the weapons from being thrown on the ground
-	DisableWeaponShake        *arguments.Argument[bool]    // Prevent the weapons from shaking the screen
-	EnableThirdPerson         *arguments.Argument[bool]    // Enable third-person view (using F4)
-	EnableLowGore             *arguments.Argument[bool]    // Disable the gore system (specimens can't be dismembered)
-	Uncap                     *arguments.Argument[bool]    // Uncap the framerate (must also be tweaked in the client)
-	Unsecure                  *arguments.Argument[bool]    // Start the server without Valve Anti-Cheat (VAC)
-	NoSteam                   *arguments.Argument[bool]    // Bypass SteamCMD and start the server right away
-	NoValidate                *arguments.Argument[bool]    // Skip server files integrity check
-	AutoRestart               *arguments.Argument[bool]    // Auto restart the server if it crashes
-	EnableRedirectServer      *arguments.Argument[bool]    // Enable the HTTP Redirect server
-	RedirectServerHost        *arguments.Argument[string]  // HTTP Redirect server IP/Host
-	RedirectServerPort        *arguments.Argument[int]     // HTTP Redirect server port
-	RedirectServerDir         *arguments.Argument[string]  // HTTP Redirect server root directory
-	RedirectServerMaxRequests *arguments.Argument[int]     // HTTP Redirect server max requests per IP/minute
-	RedirectServerBanTime     *arguments.Argument[int]     // HTTP Redirect server ban duration (in minutes)
-	EnableMutLoader           *arguments.Argument[bool]    // Enable MutLoader (https://github.com/Bleeding-Action-Man/MutLoader)
-	EnableKFPatcher           *arguments.Argument[bool]    // Enable KFPatcher (https://github.com/InsultingPros/KFPatcher)
-	KFPDisableZedTime         *arguments.Argument[bool]    // KFPatcher: Disable ZED Time
-	KFPBuyEverywhere          *arguments.Argument[bool]    // KFPatcher: Allows opening the buy menu anywhere (untested)
-	KFPEnableAllTraders       *arguments.Argument[bool]    // KFPatcher: All of the trader's spots are accessible after each wave
-	KFPAllTradersMessage      *arguments.Argument[string]  // KFPatcher: All traders open message
-	SteamLogin                string                       // Steam Account Login Username
-	SteamPassword             string                       // Steam Account Login Password
-	ExtraArgs                 []string                     // Extra arguments passed to the server
+	ServerName           *arguments.Argument[string]  // Server Name
+	ShortName            *arguments.Argument[string]  // Server Alias
+	GamePort             *arguments.Argument[int]     // Port
+	WebAdminPort         *arguments.Argument[int]     // Web Admin Panel Port
+	GameSpyPort          *arguments.Argument[int]     // GameSpy Port
+	GameMode             *arguments.Argument[string]  // Game Mode to use (Survival, Objective, Toy Master or Custom)
+	StartupMap           *arguments.Argument[string]  // Starting map
+	GameDifficulty       *arguments.Argument[int]     // Game Difficulty
+	GameLength           *arguments.Argument[int]     // Game Length
+	FriendlyFire         *arguments.Argument[float64] // Friendly Fire Rate
+	MaxPlayers           *arguments.Argument[int]     // Maximum Players
+	MaxSpectators        *arguments.Argument[int]     // Maximum Spectators
+	Password             *arguments.Argument[string]  // Server Password
+	Region               *arguments.Argument[int]     // Server Region
+	AdminName            *arguments.Argument[string]  // Administrator Name
+	AdminMail            *arguments.Argument[string]  // Administrator Email address
+	AdminPassword        *arguments.Argument[string]  // Administrator Password
+	MOTD                 *arguments.Argument[string]  // Message of the Day
+	SpecimenType         *arguments.Argument[string]  // Specimen type to use
+	Mutators             *arguments.Argument[string]  // Mutators list (Command-line)
+	ServerMutators       *arguments.Argument[string]  // Mutators list (ServerActors)
+	RedirectURL          *arguments.Argument[string]  // Redirection URL (extra content)
+	Maplist              *arguments.Argument[string]  // Map list
+	EnableWebAdmin       *arguments.Argument[bool]    // Enable the Web Admin Panel
+	EnableMapVote        *arguments.Argument[bool]    // Enable Map voting
+	MapVoteRepeatLimit   *arguments.Argument[int]     // Map vote repeat limit (number of maps to be played before a map can repeat)
+	EnableAdminPause     *arguments.Argument[bool]    // Allow the administrator(s) to pause the game
+	DisableWeaponThrow   *arguments.Argument[bool]    // Prevent the weapons from being thrown on the ground
+	DisableWeaponShake   *arguments.Argument[bool]    // Prevent the weapons from shaking the screen
+	EnableThirdPerson    *arguments.Argument[bool]    // Enable third-person view (using F4)
+	EnableLowGore        *arguments.Argument[bool]    // Disable the gore system (specimens can't be dismembered)
+	Uncap                *arguments.Argument[bool]    // Uncap the framerate (must also be tweaked in the client)
+	Unsecure             *arguments.Argument[bool]    // Start the server without Valve Anti-Cheat (VAC)
+	NoSteam              *arguments.Argument[bool]    // Bypass SteamCMD and start the server right away
+	NoValidate           *arguments.Argument[bool]    // Skip server files integrity check
+	AutoRestart          *arguments.Argument[bool]    // Auto restart the server if it crashes
+	EnableMutLoader      *arguments.Argument[bool]    // Enable MutLoader (https://github.com/Bleeding-Action-Man/MutLoader)
+	EnableKFPatcher      *arguments.Argument[bool]    // Enable KFPatcher (https://github.com/InsultingPros/KFPatcher)
+	KFPDisableZedTime    *arguments.Argument[bool]    // KFPatcher: Disable ZED Time
+	KFPBuyEverywhere     *arguments.Argument[bool]    // KFPatcher: Allows opening the buy menu anywhere (untested)
+	KFPEnableAllTraders  *arguments.Argument[bool]    // KFPatcher: All of the trader's spots are accessible after each wave
+	KFPAllTradersMessage *arguments.Argument[string]  // KFPatcher: All traders open message
+	ExtraArgs            []string                     // Extra arguments passed to the server
+	SteamLogin           string                       // Steam Account Login Username
+	SteamPassword        string                       // Steam Account Login Password
 }
 
 func (s *KFDSLSettings) Parse() error {

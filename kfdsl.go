@@ -14,7 +14,6 @@ import (
 	"github.com/K4rian/kfdsl/internal/config"
 	"github.com/K4rian/kfdsl/internal/config/secrets"
 	"github.com/K4rian/kfdsl/internal/services/kfserver"
-	"github.com/K4rian/kfdsl/internal/services/redirectserver"
 	"github.com/K4rian/kfdsl/internal/services/steamcmd"
 	"github.com/K4rian/kfdsl/internal/settings"
 	"github.com/K4rian/kfdsl/internal/utils"
@@ -134,23 +133,6 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		return nil, fmt.Errorf("failed to start the Killing Floor Dedicated Server: %v", err)
 	}
 	return gameServer, nil
-}
-
-func startRedirectServer(sett *settings.KFDSLSettings, ctx context.Context) (*redirectserver.HTTPRedirectServer, error) {
-	redirectServer := redirectserver.NewHTTPRedirectServer(
-		sett.RedirectServerHost.Value(),
-		sett.RedirectServerPort.Value(),
-		sett.RedirectServerDir.Value(),
-		sett.RedirectServerMaxRequests.Value(),
-		sett.RedirectServerBanTime.Value(),
-		ctx,
-	)
-
-	fmt.Printf("> Starting the HTTP Redirect Server...\n")
-	if err := redirectServer.Listen(); err != nil {
-		return nil, fmt.Errorf("failed to start the HTTP Redirect Server: %v", err)
-	}
-	return redirectServer, nil
 }
 
 func updateConfigFileServerMutators(iniFile *config.KFIniFile, sett *settings.KFDSLSettings) error {
