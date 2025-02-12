@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func GetInstalledMaps(dir, prefix string) ([]string, error) {
+func GetInstalledMaps(dir string, prefix string) ([]string, error) {
 	var filteredFiles []string
 
 	files, err := os.ReadDir(dir)
@@ -16,10 +16,20 @@ func GetInstalledMaps(dir, prefix string) ([]string, error) {
 	}
 
 	for _, file := range files {
-		fileName := file.Name()
-		if !file.IsDir() && strings.HasPrefix(fileName, prefix) && strings.HasSuffix(fileName, ".rom") {
-			filteredFiles = append(filteredFiles, strings.TrimSuffix(fileName, filepath.Ext(fileName)))
+		if file.IsDir() {
+			continue
 		}
+
+		fileName := file.Name()
+		if strings.HasPrefix(strings.ToLower(fileName), "kf-menu") || !strings.HasPrefix(fileName, prefix) {
+			continue
+		}
+
+		ext := filepath.Ext(fileName)
+		if ext != ".rom" {
+			continue
+		}
+		filteredFiles = append(filteredFiles, strings.TrimSuffix(fileName, ext))
 	}
 	return filteredFiles, nil
 }

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/K4rian/kfdsl/internal/utils"
 )
 
 type KFServer struct {
@@ -179,9 +181,7 @@ func (s *KFServer) IsRunning() bool {
 }
 
 func (s *KFServer) IsPresent() bool {
-	_, err := os.Stat(s.rootDir)
-	_, err2 := os.Stat(s.executable)
-	return err == nil && err2 == nil
+	return utils.FileExists(s.executable)
 }
 
 func (s *KFServer) buildCommandLine() []string {

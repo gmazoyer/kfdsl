@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+
+	"github.com/K4rian/kfdsl/internal/utils"
 )
 
 type SteamCMD struct {
@@ -169,7 +171,5 @@ func (s *SteamCMD) IsRunning() bool {
 }
 
 func (s *SteamCMD) IsPresent() bool {
-	_, err := os.Stat(s.rootDir)
-	_, err2 := os.Stat(path.Join(s.rootDir, "steamcmd.sh"))
-	return err == nil && err2 == nil
+	return utils.FileExists(path.Join(s.rootDir, "steamcmd.sh"))
 }

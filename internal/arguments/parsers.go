@@ -6,6 +6,7 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -14,6 +15,15 @@ func ParseNonEmptyStr(raw string, name string) func(r string) (string, error) {
 		val := strings.TrimSpace(strings.ToLower(raw))
 		if val == "" {
 			return "", fmt.Errorf("invalid %s: undefined or empty", name)
+		}
+		return raw, nil
+	}
+}
+
+func ParsePositiveInt(raw int, name string) func(r int) (int, error) {
+	return func(r int) (int, error) {
+		if raw < 1 {
+			return 0, fmt.Errorf("invalid %s (%d): value cannot be negative", name, raw)
 		}
 		return raw, nil
 	}
@@ -179,4 +189,22 @@ func ParseSpecimentType(raw string) (string, error) {
 		return val, nil
 	}
 	return "", fmt.Errorf("invalid Specimen Type: %s", raw)
+}
+
+func ParseLogLevel(raw string) (string, error) {
+	var levels = []string{"info", "debug", "warn", "error"}
+
+	val := strings.TrimSpace(strings.ToLower(raw))
+	if !slices.Contains(levels, val) {
+		return "", fmt.Errorf("invalid Log Level: %s", raw)
+	}
+	return val, nil
+}
+
+func ParseLogFileFormat(raw string) (string, error) {
+	val := strings.TrimSpace(strings.ToLower(raw))
+	if val != "text" && val != "json" {
+		return "", fmt.Errorf("invalid Log File Format: %s", raw)
+	}
+	return val, nil
 }

@@ -1,6 +1,7 @@
 package settings
 
 const (
+	DefaultConfigFile           = "KillingFloor.ini"
 	DefaultServerName           = "KF Server"
 	DefaultShortName            = "KFS"
 	DefaultGamePort             = 7707
@@ -39,10 +40,18 @@ const (
 	DefaultAutoRestart          = false
 	DefaultEnableMutLoader      = false
 	DefaultEnableKFPatcher      = false
+	DefaultKFPHidePerks         = false
 	DefaultKFPDisableZedTime    = false
 	DefaultKFPEnableAllTraders  = false
 	DefaultKFPAllTradersMessage = "\"^wAll traders are ^ropen^w!\""
 	DefaultKFPBuyEverywhere     = false
+	DefaultLogToFile            = false
+	DefaultLogLevel             = "info"
+	DefaultLogFile              = "./kfdsl.log"
+	DefaultLogFileFormat        = "text"
+	DefaultLogMaxSize           = 10
+	DefaultLogMaxBackups        = 5
+	DefaultLogMaxAge            = 28
 	DefaultSteamLogin           = "anonymous"
 	DefaultSteamPassword        = ""
 )

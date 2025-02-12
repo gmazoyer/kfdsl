@@ -39,7 +39,9 @@ func NewKFPIniFile(filePath string) (*KFPIniFile, error) {
 
 // fRefreshTime
 
-// bShowPerk
+func (kf *KFPIniFile) IsShowPerksEnabled() bool {
+	return kf.GetKeyBool("KFPatcher.Settings", "bShowPerk", !settings.DefaultKFPHidePerks)
+}
 
 func (kf *KFPIniFile) IsZEDTimeEnabled() bool {
 	return kf.GetKeyBool("KFPatcher.Settings", "bAllowZedTime", !settings.DefaultKFPDisableZedTime)
@@ -58,6 +60,10 @@ func (kf *KFPIniFile) IsBuyEverywhereEnabled() bool {
 }
 
 // -----------------------
+
+func (kf *KFPIniFile) SetShowPerksEnabled(enabled bool) bool {
+	return kf.SetKeyBool("KFPatcher.Settings", "bShowPerk", enabled, true)
+}
 
 func (kf *KFPIniFile) SetZEDTimeEnabled(enabled bool) bool {
 	return kf.SetKeyBool("KFPatcher.Settings", "bAllowZedTime", enabled, true)

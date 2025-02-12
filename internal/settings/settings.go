@@ -5,9 +5,11 @@ import (
 	"reflect"
 
 	"github.com/K4rian/kfdsl/internal/arguments"
+	"github.com/K4rian/kfdsl/internal/log"
 )
 
 type KFDSLSettings struct {
+	ConfigFile           *arguments.Argument[string]  // Server Configuration File
 	ServerName           *arguments.Argument[string]  // Server Name
 	ShortName            *arguments.Argument[string]  // Server Alias
 	GamePort             *arguments.Argument[int]     // Port
@@ -46,10 +48,18 @@ type KFDSLSettings struct {
 	AutoRestart          *arguments.Argument[bool]    // Auto restart the server if it crashes
 	EnableMutLoader      *arguments.Argument[bool]    // Enable MutLoader (https://github.com/Bleeding-Action-Man/MutLoader)
 	EnableKFPatcher      *arguments.Argument[bool]    // Enable KFPatcher (https://github.com/InsultingPros/KFPatcher)
+	KFPHidePerks         *arguments.Argument[bool]    // KFPatcher: Hide Perks
 	KFPDisableZedTime    *arguments.Argument[bool]    // KFPatcher: Disable ZED Time
 	KFPBuyEverywhere     *arguments.Argument[bool]    // KFPatcher: Allows opening the buy menu anywhere (untested)
 	KFPEnableAllTraders  *arguments.Argument[bool]    // KFPatcher: All of the trader's spots are accessible after each wave
 	KFPAllTradersMessage *arguments.Argument[string]  // KFPatcher: All traders open message
+	LogToFile            *arguments.Argument[bool]    // Enable file logging
+	LogLevel             *arguments.Argument[string]  // Log level (info, debug, warn, error)
+	LogFile              *arguments.Argument[string]  // Log file path
+	LogFileFormat        *arguments.Argument[string]  // Log format (text or json)
+	LogMaxSize           *arguments.Argument[int]     // Max log file size (MB)
+	LogMaxBackups        *arguments.Argument[int]     // Max number of old log files to keep
+	LogMaxAge            *arguments.Argument[int]     // Max age of a log file (days)
 	ExtraArgs            []string                     // Extra arguments passed to the server
 	SteamLogin           string                       // Steam Account Login Username
 	SteamPassword        string                       // Steam Account Login Password
@@ -68,7 +78,7 @@ func (s *KFDSLSettings) Parse() error {
 				}
 			} else {
 				// Shouldn't happen
-				return fmt.Errorf("field %s cannot be parsed", val.Type().Field(i).Name)
+				return fmt.Errorf("field '%s' cannot be parsed", val.Type().Field(i).Name)
 			}
 		}
 	}
@@ -99,9 +109,9 @@ func (s *KFDSLSettings) Print() {
 		}
 	}
 
-	fmt.Println("====================================================")
-	fmt.Println("                   KFDSL Settings                   ")
-	fmt.Println("====================================================")
+	log.Logger.Info("====================================================")
+	log.Logger.Info("                   KFDSL Settings                   ")
+	log.Logger.Info("====================================================")
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		if pField := getParsableField(field); pField != nil {
@@ -113,10 +123,10 @@ func (s *KFDSLSettings) Print() {
 					value = "<unset>"
 				}
 			}
-			fmt.Printf(" ● %-*s → %s\n", maxKeyLength, pField.Name(), value)
+			log.Logger.Info(" ● %-*s → %s", maxKeyLength, pField.Name(), value)
 		}
 	}
-	fmt.Println("=====================================================")
+	log.Logger.Info("=====================================================")
 }
 
 var settings = &KFDSLSettings{}
