@@ -1,6 +1,7 @@
 package kfserver
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -11,6 +12,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/K4rian/dslogger"
+	"github.com/creack/pty"
+
+	"github.com/K4rian/kfdsl/internal/log"
 	"github.com/K4rian/kfdsl/internal/utils"
 )
 
@@ -27,6 +32,7 @@ type KFServer struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	mu         sync.Mutex
+	logger     *dslogger.Logger
 	execErr    error
 }
 
@@ -49,6 +55,7 @@ func NewKFServer(
 		mutators:   mutators,
 		extraArgs:  extraArgs,
 		executable: path.Join(rootDir, "System", "ucc-bin"),
+		logger:     log.Logger.WithService("KFServer"),
 	}
 	kfs.ctx, kfs.cancel = context.WithCancel(ctx)
 	return kfs
@@ -78,23 +85,41 @@ func (s *KFServer) Start(autoRestart bool) error {
 				return
 			}
 
+			// Set-up the command
 			s.mu.Lock()
 			cmd := exec.CommandContext(s.ctx, cmdLine[0], cmdLine[1:]...)
 			cmd.Dir = path.Join(s.rootDir, "System")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			s.cmd = cmd
-			s.mu.Unlock()
 
-			if err := cmd.Start(); err != nil {
-				s.execErr = err
+			// Start the process with a pseudo-terminal
+			ptmx, err := pty.Start(s.cmd)
+			if err != nil {
+				s.execErr = fmt.Errorf("failed to start pty: %v", err)
+				s.mu.Unlock()
 				return
 			}
+			s.mu.Unlock()
 
+			// Goroutine for real-time log capture
+			go func() {
+				defer ptmx.Close()
+
+				scanner := bufio.NewScanner(ptmx)
+				for scanner.Scan() {
+					s.logger.Info(scanner.Text())
+				}
+
+				if err := scanner.Err(); err != nil {
+					s.execErr = fmt.Errorf("error reading from pty: %v", err)
+				}
+			}()
+
+			// Wait for process to exit
 			if err := cmd.Wait(); err != nil {
 				s.execErr = fmt.Errorf("process exited with error: %v", err)
 			}
 
+			// Clean up
 			s.mu.Lock()
 			s.cmd = nil
 			s.mu.Unlock()
@@ -104,11 +129,12 @@ func (s *KFServer) Start(autoRestart bool) error {
 				return
 			}
 
+			// Handle auto-restart
 			if !autoRestart {
 				return
 			}
 
-			fmt.Printf("> Restarting the Killing Floor Server in %v...\n", restartDelay)
+			s.logger.Info("Restarting the Killing Floor Dedicated Server...", "delaySeconds", restartDelay)
 			time.Sleep(restartDelay)
 
 			// Exponential backoff (capped at maxDelay)
@@ -145,7 +171,7 @@ func (s *KFServer) Stop() error {
 	// Send a SIGTERM signal to the server process
 	// If the server process refuses to exit, kill it
 	if err := s.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		fmt.Printf("failed to send SIGTERM: %v. Attempting to kill the process...\n", err)
+		s.logger.Error("failed to send SIGTERM. Attempting to kill the process...", "err", err)
 		if err := s.cmd.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to stop server process: %v", err)
 		}

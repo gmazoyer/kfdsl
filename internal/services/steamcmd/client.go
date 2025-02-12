@@ -1,16 +1,22 @@
 package steamcmd
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"sync"
 	"syscall"
 
+	"github.com/K4rian/dslogger"
+	"github.com/creack/pty"
+
+	"github.com/K4rian/kfdsl/internal/log"
 	"github.com/K4rian/kfdsl/internal/utils"
 )
 
@@ -20,12 +26,14 @@ type SteamCMD struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	mu      sync.Mutex
+	logger  *dslogger.Logger
 	execErr error
 }
 
 func NewSteamCMD(rootDir string, ctx context.Context) *SteamCMD {
 	scmd := &SteamCMD{
 		rootDir: rootDir,
+		logger:  log.Logger.WithService("SteamCMD"),
 	}
 	scmd.ctx, scmd.cancel = context.WithCancel(ctx)
 	return scmd
@@ -50,24 +58,57 @@ func (s *SteamCMD) Run(args ...string) error {
 		args...,
 	)
 
+	// Set-up the command
 	cmd := exec.CommandContext(s.ctx, args[0], args[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start SteamCMD: %v", err)
-	}
 	s.cmd = cmd
 
-	go func() {
-		defer s.cancel()
+	// Start the process with a pseudo-terminal
+	ptmx, err := pty.Start(s.cmd)
+	if err != nil {
+		return fmt.Errorf("failed to start pty: %v", err)
+	}
 
+	// Goroutine for real-time log capture
+	go func() {
+		scanner := bufio.NewScanner(ptmx)
+		for scanner.Scan() {
+			s.logger.Info(scanner.Text())
+		}
+
+		if err := scanner.Err(); err != nil {
+			s.execErr = fmt.Errorf("error reading from pty: %v", err)
+		}
+
+		// Handle process exit and cleanup
 		if err := cmd.Wait(); err != nil {
 			s.execErr = fmt.Errorf("process exited with error: %v", err)
 		}
+
+		// Clean up
 		s.mu.Lock()
 		s.cmd = nil
 		s.mu.Unlock()
+	}()
+
+	// Goroutine to monitor the cancellation context
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, os.Interrupt)
+
+		<-signalChan
+
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		if ptmx != nil && s.IsRunning() {
+			s.cancel()
+
+			s.logger.Info("Shutting down...")
+			if _, err := ptmx.Write([]byte{3}); err != nil {
+				s.logger.Error("failed to send SIGINT to pty", "err", err)
+			}
+			s.execErr = fmt.Errorf("process cancelled")
+		}
 	}()
 	return nil
 }
@@ -96,7 +137,7 @@ func (s *SteamCMD) Stop() error {
 	// Send a SIGTERM signal to the server process
 	// If the server process refuses to exit, kill it
 	if err := s.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		fmt.Printf("failed to send SIGTERM: %v. Attempting to kill the process...\n", err)
+		s.logger.Error("failed to send SIGTERM. Attempting to kill the process...", "err", err)
 		if err := s.cmd.Process.Kill(); err != nil {
 			return fmt.Errorf("failed to stop SteamCMD process: %v", err)
 		}
@@ -128,7 +169,7 @@ func (s *SteamCMD) Wait() error {
 }
 
 func (s *SteamCMD) RunScript(fileName string) error {
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+	if !utils.FileExists(fileName) {
 		return fmt.Errorf("script file %s not found", fileName)
 	}
 

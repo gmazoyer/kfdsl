@@ -13,7 +13,7 @@ import (
 
 func BuildRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "./kfdsl <arguments>",
+		Use:   "./kfdsl",
 		Short: "KF Dedicated Server Launcher",
 		Long:  "A command-line tool to configure and run a Killing Floor dedicated server.",
 		RunE:  runRootCommand,
