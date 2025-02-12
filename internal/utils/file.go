@@ -6,6 +6,26 @@ import (
 	"os"
 )
 
+func CopyFile(srcPath, destPath string) error {
+	sourceFile, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return destinationFile.Sync()
+}
+
 func CopyAndReplaceFile(srcPath, destPath string) error {
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
@@ -34,4 +54,9 @@ func CopyAndReplaceFile(srcPath, destPath string) error {
 		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 	return nil
+}
+
+func FileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil || !os.IsNotExist(err)
 }
