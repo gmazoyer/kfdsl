@@ -123,7 +123,7 @@ func (s *KFDSLSettings) Print() {
 					value = "<unset>"
 				}
 			}
-			log.Logger.Info(" ● %-*s → %s", maxKeyLength, pField.Name(), value)
+			log.Logger.Info(fmt.Sprintf(" ● %-*s → %s", maxKeyLength, pField.Name(), value))
 		}
 	}
 	log.Logger.Info("=====================================================")
