@@ -43,7 +43,7 @@ const (
 func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 	steamCMD := steamcmd.NewSteamCMD(viper.GetString("STEAMCMD_ROOT"), ctx)
 
-	if !steamCMD.IsPresent() {
+	if !steamCMD.IsAvailable() {
 		return fmt.Errorf("unable to locate SteamCMD in '%s', please install it first", steamCMD.RootDirectory())
 	}
 
@@ -101,7 +101,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		ctx,
 	)
 
-	if !gameServer.IsPresent() {
+	if !gameServer.IsAvailable() {
 		return nil, fmt.Errorf("unable to locate the KF Dedicated Server files in '%s', please install using SteamCMD", gameServer.RootDirectory())
 	}
 
