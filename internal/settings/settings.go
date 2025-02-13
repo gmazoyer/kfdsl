@@ -118,9 +118,9 @@ func (s *KFDSLSettings) Print() {
 			value := pField.FormattedValue()
 			if pField.IsSensitive() {
 				if value != "" {
-					value = "<set>"
+					value = "Yes"
 				} else {
-					value = "<unset>"
+					value = "No"
 				}
 			}
 			log.Logger.Info(fmt.Sprintf(" ● %-*s → %s", maxKeyLength, pField.Name(), value))

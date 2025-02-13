@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/K4rian/dslogger"
 	"github.com/creack/pty"
@@ -26,7 +27,9 @@ type SteamCMD struct {
 	ctx     context.Context
 	cancel  context.CancelFunc
 	mu      sync.Mutex
+	ptmx    *os.File
 	logger  *dslogger.Logger
+	done    chan struct{}
 	execErr error
 }
 
@@ -52,42 +55,57 @@ func (s *SteamCMD) Run(args ...string) error {
 	}
 
 	args = append(
-		[]string{
-			filepath.Join(s.rootDir, "steamcmd.sh"),
-		},
+		[]string{filepath.Join(s.rootDir, "steamcmd.sh")},
 		args...,
 	)
 
-	// Set-up the command
+	// Set up the command
 	cmd := exec.CommandContext(s.ctx, args[0], args[1:]...)
 	s.cmd = cmd
+
+	// Reset the execution error
+	s.execErr = nil
 
 	// Start the process with a pseudo-terminal
 	ptmx, err := pty.Start(s.cmd)
 	if err != nil {
 		return fmt.Errorf("failed to start pty: %v", err)
 	}
+	s.ptmx = ptmx
 
-	// Goroutine for real-time log capture
+	// Create a done channel to signal when the process is finished
+	s.done = make(chan struct{})
+
+	// Goroutine for real-time log capture and wait for process exit
 	go func() {
+		defer func() {
+			s.mu.Lock()
+			if s.ptmx != nil {
+				s.ptmx.Close()
+				s.ptmx = nil
+			}
+			s.cmd = nil
+			s.mu.Unlock()
+			close(s.done)
+		}()
+
 		scanner := bufio.NewScanner(ptmx)
 		for scanner.Scan() {
 			s.logger.Info(scanner.Text())
 		}
 
-		if err := scanner.Err(); err != nil {
-			s.execErr = fmt.Errorf("error reading from pty: %v", err)
+		if err := scanner.Err(); err != nil && !errors.Is(err, syscall.EIO) {
+			s.execErr = fmt.Errorf("error reading from pty: %w", err)
 		}
 
-		// Handle process exit and cleanup
+		// Wait for the process to exit
 		if err := cmd.Wait(); err != nil {
-			s.execErr = fmt.Errorf("process exited with error: %v", err)
+			if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 0 {
+				s.logger.Debug("SteamCMD exited normally")
+			} else {
+				s.execErr = fmt.Errorf("process exited with error: %v", err)
+			}
 		}
-
-		// Clean up
-		s.mu.Lock()
-		s.cmd = nil
-		s.mu.Unlock()
 	}()
 
 	// Goroutine to monitor the cancellation context
@@ -96,16 +114,17 @@ func (s *SteamCMD) Run(args ...string) error {
 		signal.Notify(signalChan, os.Interrupt)
 
 		<-signalChan
+		signal.Stop(signalChan)
 
 		s.mu.Lock()
 		defer s.mu.Unlock()
 
-		if ptmx != nil && s.IsRunning() {
+		if s.ptmx != nil && s.IsRunning() {
 			s.cancel()
 
 			s.logger.Info("Shutting down...")
-			if _, err := ptmx.Write([]byte{3}); err != nil {
-				s.logger.Error("failed to send SIGINT to pty", "err", err)
+			if _, err := s.ptmx.Write([]byte{3}); err != nil {
+				s.logger.Error("Failed to send SIGINT to pty", "err", err)
 			}
 			s.execErr = fmt.Errorf("process cancelled")
 		}
@@ -115,53 +134,53 @@ func (s *SteamCMD) Run(args ...string) error {
 
 func (s *SteamCMD) Stop() error {
 	s.mu.Lock()
+	s.cancel()
 	defer s.mu.Unlock()
 
-	// Already stopped
-	if s.cmd != nil && s.cmd.ProcessState != nil && s.cmd.ProcessState.Exited() {
-		s.cmd = nil
-		return nil
-	}
-
-	// Already stopped or never started
+	// The process is already stopped or never started
 	if s.cmd == nil {
-		s.cmd = nil
 		return nil
 	}
 
-	// The context has already been cancelled
-	if err := s.ctx.Err(); err != nil {
-		return nil
+	// Send CTRL+C to gracefully terminate SteamCMD inside the pty
+	s.logger.Info("Attempting to send SIGINT to SteamCMD...")
+	if _, err := s.ptmx.Write([]byte{3}); err != nil {
+		s.logger.Error("Failed to send SIGINT to pty", "err", err)
 	}
 
-	// Send a SIGTERM signal to the server process
-	// If the server process refuses to exit, kill it
-	if err := s.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		s.logger.Error("failed to send SIGTERM. Attempting to kill the process...", "err", err)
-		if err := s.cmd.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to stop SteamCMD process: %v", err)
-		}
-	}
+	// Give some time for the process to terminate
+	time.Sleep(2 * time.Second)
 
-	// Wait for the process to exit, if still running
+	// Check if the process is still running
 	if s.cmd.ProcessState == nil || !s.cmd.ProcessState.Exited() {
-		if err := s.cmd.Wait(); err != nil {
-			// Skip the 'no child process' error (ECHILD)
-			var syscallErr *os.SyscallError
-			if errors.As(err, &syscallErr) && syscallErr.Err != syscall.ECHILD {
-				return fmt.Errorf("failed to wait for SteamCMD to exit: %v", err)
+		s.logger.Warn("Process did not exit after SIGINT, attempting SIGTERM...")
+
+		if err := s.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+			s.logger.Error("Failed to send SIGTERM, attempting to kill the process...", "err", err)
+
+			// If SIGTERM fails use SIGKILL
+			if err := s.cmd.Process.Kill(); err != nil {
+				return fmt.Errorf("failed to force kill process: %v", err)
 			}
+			s.logger.Info("Process forcefully killed")
 		}
+	} else {
+		s.logger.Info("Process exited gracefully")
 	}
+
+	// Clean up the pseudo-terminal
+	if s.ptmx != nil {
+		s.ptmx.Close()
+		s.ptmx = nil
+	}
+
 	s.cmd = nil
 	return nil
 }
 
 func (s *SteamCMD) Wait() error {
-	<-s.ctx.Done()
-	if err := s.Stop(); err != nil {
-		return err
-	}
+	<-s.done
+
 	if s.execErr != nil {
 		return s.execErr
 	}

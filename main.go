@@ -71,4 +71,5 @@ func main() {
 	}
 
 	<-signalChan
+	signal.Stop(signalChan)
 }

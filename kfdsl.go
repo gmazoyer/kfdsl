@@ -67,7 +67,7 @@ func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 	); err != nil {
 		return err
 	}
-	log.Logger.Info("KF Dedicated Server install script was successfully written", "scriptPath", installScript)
+	log.Logger.Info("Install script was successfully written", "scriptPath", installScript)
 
 	log.Logger.Info("Starting SteamCMD...", "rootDir", steamCMD.RootDirectory(), "appInstallRootDir", serverInstallDir)
 	if err := steamCMD.RunScript(installScript); err != nil && !errors.Is(err, context.Canceled) {
@@ -110,7 +110,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 	if err := updateConfigFile(sett); err != nil {
 		return nil, fmt.Errorf("failed to update the KF Dedicated Server configuration file '%s': %v", configFilePath, err)
 	}
-	log.Logger.Info("KF Dedicated Server configuration file successfully updated", "configFile", configFilePath)
+	log.Logger.Info("Server configuration file successfully updated", "configFile", configFilePath)
 
 	if sett.EnableKFPatcher.Value() {
 		kfpConfigFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "KFPatcherSettings.ini")
@@ -129,7 +129,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 				log.Logger.Info("Steam library successfully updated", "library", lib)
 			}
 		} else {
-			log.Logger.Info("All KF Dedicated Server Steam libraries are up-to-date")
+			log.Logger.Info("All server Steam libraries are up-to-date")
 		}
 	} else {
 		log.Logger.Error("Unable to update the KF Dedicated Server Steam libraries", "err", err)
