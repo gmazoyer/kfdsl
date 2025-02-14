@@ -42,9 +42,9 @@ const (
 	DefaultEnableKFPatcher      = false
 	DefaultKFPHidePerks         = false
 	DefaultKFPDisableZedTime    = false
+	DefaultKFPBuyEverywhere     = false
 	DefaultKFPEnableAllTraders  = false
 	DefaultKFPAllTradersMessage = "\"^wAll traders are ^ropen^w!\""
-	DefaultKFPBuyEverywhere     = false
 	DefaultLogToFile            = false
 	DefaultLogLevel             = "info"
 	DefaultLogFile              = "./kfdsl.log"

@@ -337,8 +337,8 @@ func readSteamCredentials(sett *settings.KFDSLSettings) error {
 	}()
 
 	// Try reading from Docker Secrets
-	steamUsername, errUser := secrets.Read("STEAMACC_USERNAME")
-	steamPassword, errPass := secrets.Read("STEAMACC_PASSWORD")
+	steamUsername, errUser := secrets.Read("steamacc_username")
+	steamPassword, errPass := secrets.Read("steamacc_password")
 
 	// Fallback to environment variables if secrets are missing
 	if errUser != nil {
@@ -352,7 +352,7 @@ func readSteamCredentials(sett *settings.KFDSLSettings) error {
 
 	// Ensure both credentials are present
 	if steamUsername == "" || steamPassword == "" {
-		return fmt.Errorf("incomplete credentials: both STEAMACC_USERNAME and STEAMACC_PASSWORD must be provided")
+		return fmt.Errorf("incomplete credentials: Steam username and password are required")
 	}
 
 	// Update the settings
