@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -124,6 +125,7 @@ func BuildRootCommand() *cobra.Command {
 	viper.SetDefault("STEAMACC_USERNAME", settings.DefaultSteamLogin)
 
 	viper.SetEnvPrefix("KF")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 
 	return rootCmd
