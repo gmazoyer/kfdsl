@@ -113,7 +113,14 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 	log.Logger.Info("Server configuration file successfully updated", "configFile", configFilePath)
 
 	if sett.EnableKFPatcher.Value() {
-		kfpConfigFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "KFPatcherSettings.ini")
+		log.Logger.Info("Setting up KFPatcher configuration...")
+		err := setupKFPatcher(sett)
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup KFPatcher: %v", err)
+		}
+		log.Logger.Info("KFPatcher setup completed successfully")
+
+		kfpConfigFilePath := filepath.Join(rootDir, "System", "KFPatcherSettings.ini")
 		log.Logger.Info("Updating the KFPatcher configuration file...", "configFile", kfpConfigFilePath)
 		if err := updateKFPatcherConfigFile(sett); err != nil {
 			return nil, fmt.Errorf("failed to update the KFPatcher configuration file '%s': %v", kfpConfigFilePath, err)
@@ -272,6 +279,52 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 			return err
 		}
 	}
+	return nil
+}
+
+func setupKFPatcher(sett *settings.KFDSLSettings) error {
+	destDir := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System")
+
+	// Download KFUnflect and move it into the system directory
+	unflectFilePath := path.Join(destDir, "KFUnflect.u")
+	if !utils.FileExists(unflectFilePath) {
+		log.Logger.Debug("Downloading KFUnflect...", "url", sett.KFUnflectURL.RawValue())
+		unflectFilename, err := utils.DownloadFile(sett.KFUnflectURL.RawValue())
+		if err != nil {
+			return err
+		}
+		log.Logger.Debug("Moving KFUnflect to the system directory...", "source", unflectFilename, "destination", unflectFilePath)
+		if err := utils.MoveFile(unflectFilename, unflectFilePath); err != nil {
+			return fmt.Errorf("failed to move %s into %s: %v", unflectFilename, destDir, err)
+		}
+	} else {
+		log.Logger.Debug("KFUnflect already exists in the system directory", "path", unflectFilePath)
+	}
+
+	// Download KFPatcher and extract it into the system directory
+	patcherFiles := []string{"KFPatcher.u", "KFPatcher.ucl", "KFPatcherFuncs.ini", "KFPatcherSettings.ini"}
+	needToDownload := false
+	for _, file := range patcherFiles {
+		needToDownload = !utils.FileExists(filepath.Join(destDir, file))
+		if needToDownload {
+			break
+		}
+	}
+
+	if needToDownload {
+		log.Logger.Debug("Downloading KFPatcher...", "url", sett.KFPatcherURL.RawValue())
+		patcherArchive, err := utils.DownloadFile(sett.KFPatcherURL.RawValue())
+		if err != nil {
+			return err
+		}
+		log.Logger.Debug("Extracting KFPatcher to the system directory...", "archive", patcherArchive, "destination", destDir)
+		if err := utils.UnzipFile(patcherArchive, destDir); err != nil {
+			return fmt.Errorf("failed to unpack %s into %s: %v", patcherArchive, destDir, err)
+		}
+	} else {
+		log.Logger.Debug("KFPatcher files already exist in the system directory", "path", destDir)
+	}
+
 	return nil
 }
 

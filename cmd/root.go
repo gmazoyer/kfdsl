@@ -24,8 +24,8 @@ func BuildRootCommand() *cobra.Command {
 
 	var configFile, serverName, shortName, gameMode, startupMap, gameDifficulty, gameLength,
 		password, adminName, adminMail, adminPassword, motd, specimenType, mutators,
-		serverMutators, redirectURL, mapList, allTradersMessage, logLevel, logFilePath,
-		logFileFormat string
+		serverMutators, redirectURL, mapList, allTradersMessage, kfunflectURL, kfpatcherURL,
+		logLevel, logFilePath, logFileFormat string
 
 	var gamePort, webadminPort, gamespyPort, maxPlayers, maxSpectators, region,
 		mapVoteRepeatLimit, logMaxSize, logMaxBackups, logMaxAge int
@@ -86,6 +86,8 @@ func BuildRootCommand() *cobra.Command {
 		"buyeverywhere":       {&enableBuyEverywhere, "(KFPatcher) allow players to shop whenever", settings.DefaultKFPBuyEverywhere},
 		"alltraders":          {&enableAllTraders, "(KFPatcher) make all trader's spots accessible", settings.DefaultKFPEnableAllTraders},
 		"alltraders-message":  {&allTradersMessage, "(KFPatcher) All traders screen message", settings.DefaultKFPAllTradersMessage},
+		"kfunflect-url":       {&kfunflectURL, "(KFPatcher) KFUnflect URL", settings.DefaultKFUnflectURL},
+		"kfpatcher-url":       {&kfpatcherURL, "(KFPatcher) arhchive URL", settings.DefaultKFPatcherURL},
 		"log-to-file":         {&enableFileLogging, "enable file logging", settings.DefaultLogToFile},
 		"log-level":           {&logLevel, "log level (info, debug, warn, error)", settings.DefaultLogLevel},
 		"log-file":            {&logFilePath, "log file path", settings.DefaultLogFile},
@@ -190,6 +192,8 @@ func registerArguments(sett *settings.KFDSLSettings) {
 	sett.KFPBuyEverywhere = arguments.NewArgument[bool](viper.GetBool("buyeverywhere"), "KFP Buy Everywhere", nil, arguments.FormatBool, false)
 	sett.KFPEnableAllTraders = arguments.NewArgument[bool](viper.GetBool("alltraders"), "KFP All Traders", nil, arguments.FormatBool, false)
 	sett.KFPAllTradersMessage = arguments.NewArgument[string](viper.GetString("alltraders-message"), "KFP All Traders Msg", nil, nil, false)
+	sett.KFPatcherURL = arguments.NewArgument[string](viper.GetString("kfpatcher-url"), "KFPatcher URL", arguments.ParseURL, nil, false)
+	sett.KFUnflectURL = arguments.NewArgument[string](viper.GetString("kfunflect-url"), "KFUnflect URL", arguments.ParseURL, nil, false)
 	sett.LogToFile = arguments.NewArgument[bool](viper.GetBool("log-to-file"), "Log to File", nil, arguments.FormatBool, false)
 	sett.LogLevel = arguments.NewArgument[string](viper.GetString("log-level"), "Log Level", arguments.ParseLogLevel, nil, false)
 	sett.LogFile = arguments.NewArgument[string](viper.GetString("log-file"), "Log File", nil, nil, false)
