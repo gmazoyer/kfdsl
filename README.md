@@ -1,16 +1,17 @@
-<p align="center">
+<!--<p align="center">
  <img alt="kfdsl logo" src="https://raw.githubusercontent.com/K4rian/kfdsl/refs/heads/assets/icons/logo-kfdsl.svg" width="25%" align="center">
-</p>
+</p>-->
+## KFDSL (Killing Floor Dedicated Server Launcher)
 
 **KFDSL** is a custom launcher for the **Killing Floor Dedicated Server**.<br>
-It automates server setup, updates, and management by integrating with **SteamCMD** and supporting **KFPatcher** and **MutLoader** out of the box.<br>
+It automates server setup, updates, and management by integrating with **SteamCMD** and supporting **[KFPatcher][1]** and **[MutLoader][2]** out of the box.<br>
 
 ---
 
 ## Features
 - **SteamCMD Integration**: Install, update, and validate server files effortlessly using SteamCMD.
 - **Configuration Management**: Automatically updates server and mods configuration files.
-- **Mod Support**: Built-in support for **KFPatcher** and **MutLoader**.
+- **Mod Support**: Built-in support for **[KFPatcher][1]** and **[MutLoader][2]**.
 - **Process Management**: Start, stop and automatically restart the server process.
 
 ## Getting started
@@ -26,10 +27,10 @@ It automates server setup, updates, and management by integrating with **SteamCM
 
 ### Installation
 #### Using Docker (✅ **Recommended**)
-- See the __[docker-killingfloor][X]__ repository.
+- See the __[docker-killingfloor][3]__ repository.
 
 #### Manual
-- __[Download the latest build][X]__ for your platform.
+- __[Download the latest build][4]__ for your platform.
 - Extract the archive.
 - Run the launcher `./kfdsl` with the desired flags and arguments, see the section below.
 
@@ -164,18 +165,17 @@ go build -ldflags "-w -s" github.com/k4rian/kfdsl
 ```
 
 ## See also
-- **[docker-steamcmd][5]**: A Docker image used to deploy a KF Dedicated Server with KFDSL included.
-- **[kfrs][6]**: A secure HTTP redirect server for the KF Dedicated Server, written in Go.
+- **[docker-kilingfloor][3]**: A Docker image used to deploy a KF Dedicated Server with KFDSL included.
+- **[kfrs][5]**: A secure HTTP redirect server for the KF Dedicated Server, written in Go.
 
 ## License
-[MIT][7]
+[MIT][6]
 
 <p align="center"><small>Made with 💀 for the Killing Floor community.</small></p>
 
-[1]: https://github.com/K4rian/kfdsl "Killing Floor Dedicated Server Launcher (KFDSL)"
-[2]: https://hub.docker.com/_/debian "Debian Docker Image on Docker Hub"
-[3]: https://github.com/K4rian/docker-killingfloor/blob/main/Dockerfile "Latest Dockerfile"
-[4]: https://github.com/K4rian/docker-killingfloor/tree/main/compose "Compose Files"
-[5]: https://github.com/K4rian/docker-steamcmd "SteamCMD Docker Image"
-[6]: https://github.com/K4rian/kfrs "Killing Floor Redirect Server (KFRS)"
-[7]: https://github.com/K4rian/docker-killingfloor/blob/main/LICENSE
+[1]: https://github.com/InsultingPros/KFPatcher "KFPatcher Repository"
+[2]: https://github.com/Bleeding-Action-Man/MutLoader "MutLoader Repository"
+[3]: https://github.com/K4rian/docker-killingfloor "KF Dedicated Server Docker Image"
+[4]: https://github.com/K4rian/kfdsl/releases/latest "Latest KFDSL release"
+[5]: https://github.com/K4rian/kfrs "KF Redirect Server (KFRS)"
+[6]: https://github.com/K4rian/kfdsl/blob/main/LICENSE
