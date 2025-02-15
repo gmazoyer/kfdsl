@@ -25,7 +25,7 @@ func BuildRootCommand() *cobra.Command {
 	var configFile, serverName, shortName, gameMode, startupMap, gameDifficulty, gameLength,
 		password, adminName, adminMail, adminPassword, motd, specimenType, mutators,
 		serverMutators, redirectURL, mapList, allTradersMessage, kfunflectURL, kfpatcherURL,
-		logLevel, logFilePath, logFileFormat string
+		logLevel, logFilePath, logFileFormat, steamRootDir, steamAppInstallDir string
 
 	var gamePort, webadminPort, gamespyPort, maxPlayers, maxSpectators, region,
 		mapVoteRepeatLimit, logMaxSize, logMaxBackups, logMaxAge int
@@ -42,59 +42,61 @@ func BuildRootCommand() *cobra.Command {
 		Desc    string
 		Default interface{}
 	}{
-		"config":              {&configFile, "configuration file", settings.DefaultConfigFile},
-		"servername":          {&serverName, "server name", settings.DefaultServerName},
-		"shortname":           {&shortName, "server short name", settings.DefaultShortName},
-		"port":                {&gamePort, "game UDP port", settings.DefaultGamePort},
-		"webadminport":        {&webadminPort, "WebAdmin TCP port", settings.DefaultWebAdminPort},
-		"gamespyport":         {&gamespyPort, "GameSpy UDP port", settings.DefaultGameSpyPort},
-		"gamemode":            {&gameMode, "game mode", settings.DefaultGameMode},
-		"map":                 {&startupMap, "starting map", settings.DefaultStartupMap},
-		"difficulty":          {&gameDifficulty, "game difficulty (easy, normal, hard, suicidal, hell)", settings.DefaultGameDifficulty},
-		"length":              {&gameLength, "game length (waves) (short, medium, long)", settings.DefaultGameLength},
-		"friendlyfire":        {&friendlyFire, "friendly fire rate (0.0-1.0)", settings.DefaultFriendlyFire},
-		"maxplayers":          {&maxPlayers, "maximum players", settings.DefaultMaxPlayers},
-		"maxspectators":       {&maxSpectators, "maximum spectators", settings.DefaultMaxSpectators},
-		"password":            {&password, "server password", settings.DefaultPassword},
-		"region":              {&region, "server region", settings.DefaultRegion},
-		"adminname":           {&adminName, "server administrator name", settings.DefaultAdminName},
-		"adminmail":           {&adminMail, "server administrator email", settings.DefaultAdminMail},
-		"adminpassword":       {&adminPassword, "server administrator password", settings.DefaultAdminPassword},
-		"motd":                {&motd, "message of the day", settings.DefaultMOTD},
-		"specimentype":        {&specimenType, "specimen type (default, summer, halloween, christmas)", settings.DefaultSpecimenType},
-		"mutators":            {&mutators, "comma-separated mutators (command-line)", settings.DefaultMutators},
-		"servermutators":      {&serverMutators, "comma-separated mutators (server actors)", settings.DefaultServerMutators},
-		"redirecturl":         {&redirectURL, "redirect URL", settings.DefaultRedirectURL},
-		"maplist":             {&mapList, "comma-separated maps for the current game mode. Use 'all' to append all available map", settings.DefaultMaplist},
-		"webadmin":            {&enableWebAdmin, "enable WebAdmin panel", settings.DefaultEnableWebAdmin},
-		"mapvote":             {&enableMapVote, "enable map voting", settings.DefaultEnableMapVote},
-		"mapvote-repeatlimit": {&mapVoteRepeatLimit, "number of maps to be played before a map can repeat", settings.DefaultMapVoteRepeatLimit},
-		"adminpause":          {&enableAdminPause, "allow admin to pause game", settings.DefaultEnableAdminPause},
-		"noweaponthrow":       {&disableWeaponThrow, "disable weapon throwing", settings.DefaultDisableWeaponThrow},
-		"noweaponshake":       {&disableWeaponShake, "disable weapon-induced screen shake", settings.DefaultDisableWeaponShake},
-		"thirdperson":         {&enableThirdPerson, "enable third-person view", settings.DefaultEnableThirdPerson},
-		"lowgore":             {&enableLowGore, "reduce gore", settings.DefaultEnableLowGore},
-		"uncap":               {&uncap, "uncap the frame rate", settings.DefaultUncap},
-		"unsecure":            {&unsecure, "disable VAC (Valve Anti-Cheat)", settings.DefaultUnsecure},
-		"nosteam":             {&noSteam, "start the server without calling SteamCMD", settings.DefaultNoSteam},
-		"novalidate":          {&disableValidation, "skip server files integrity check", settings.DefaultNoValidate},
-		"autorestart":         {&enableAutoRestart, "restart server on crash", settings.DefaultAutoRestart},
-		"mutloader":           {&enableMutloader, "enable MutLoader (override inline mutators)", settings.DefaultEnableMutLoader},
-		"kfpatcher":           {&enableKFPatcher, "enable KFPatcher", settings.DefaultEnableKFPatcher},
-		"hideperks":           {&enableShowPerks, "(KFPatcher) hide perks", settings.DefaultKFPHidePerks},
-		"nozedtime":           {&disableZEDTime, "(KFPatcher) disable ZED time", settings.DefaultKFPDisableZedTime},
-		"buyeverywhere":       {&enableBuyEverywhere, "(KFPatcher) allow players to shop whenever", settings.DefaultKFPBuyEverywhere},
-		"alltraders":          {&enableAllTraders, "(KFPatcher) make all trader's spots accessible", settings.DefaultKFPEnableAllTraders},
-		"alltraders-message":  {&allTradersMessage, "(KFPatcher) All traders screen message", settings.DefaultKFPAllTradersMessage},
-		"kfunflect-url":       {&kfunflectURL, "(KFPatcher) KFUnflect URL", settings.DefaultKFUnflectURL},
-		"kfpatcher-url":       {&kfpatcherURL, "(KFPatcher) arhchive URL", settings.DefaultKFPatcherURL},
-		"log-to-file":         {&enableFileLogging, "enable file logging", settings.DefaultLogToFile},
-		"log-level":           {&logLevel, "log level (info, debug, warn, error)", settings.DefaultLogLevel},
-		"log-file":            {&logFilePath, "log file path", settings.DefaultLogFile},
-		"log-file-format":     {&logFileFormat, "log format (text or json)", settings.DefaultLogFileFormat},
-		"log-max-size":        {&logMaxSize, "max log file size (MB)", settings.DefaultLogMaxSize},
-		"log-max-backups":     {&logMaxBackups, "max number of old log files to keep", settings.DefaultLogMaxBackups},
-		"log-max-age":         {&logMaxAge, "max age of a log file (days)", settings.DefaultLogMaxAge},
+		"config":                 {&configFile, "configuration file", settings.DefaultConfigFile},
+		"servername":             {&serverName, "server name", settings.DefaultServerName},
+		"shortname":              {&shortName, "server short name", settings.DefaultShortName},
+		"port":                   {&gamePort, "game UDP port", settings.DefaultGamePort},
+		"webadminport":           {&webadminPort, "WebAdmin TCP port", settings.DefaultWebAdminPort},
+		"gamespyport":            {&gamespyPort, "GameSpy UDP port", settings.DefaultGameSpyPort},
+		"gamemode":               {&gameMode, "game mode", settings.DefaultGameMode},
+		"map":                    {&startupMap, "starting map", settings.DefaultStartupMap},
+		"difficulty":             {&gameDifficulty, "game difficulty (easy, normal, hard, suicidal, hell)", settings.DefaultGameDifficulty},
+		"length":                 {&gameLength, "game length (waves) (short, medium, long)", settings.DefaultGameLength},
+		"friendlyfire":           {&friendlyFire, "friendly fire rate (0.0-1.0)", settings.DefaultFriendlyFire},
+		"maxplayers":             {&maxPlayers, "maximum players", settings.DefaultMaxPlayers},
+		"maxspectators":          {&maxSpectators, "maximum spectators", settings.DefaultMaxSpectators},
+		"password":               {&password, "server password", settings.DefaultPassword},
+		"region":                 {&region, "server region", settings.DefaultRegion},
+		"adminname":              {&adminName, "server administrator name", settings.DefaultAdminName},
+		"adminmail":              {&adminMail, "server administrator email", settings.DefaultAdminMail},
+		"adminpassword":          {&adminPassword, "server administrator password", settings.DefaultAdminPassword},
+		"motd":                   {&motd, "message of the day", settings.DefaultMOTD},
+		"specimentype":           {&specimenType, "specimen type (default, summer, halloween, christmas)", settings.DefaultSpecimenType},
+		"mutators":               {&mutators, "comma-separated mutators (command-line)", settings.DefaultMutators},
+		"servermutators":         {&serverMutators, "comma-separated mutators (server actors)", settings.DefaultServerMutators},
+		"redirecturl":            {&redirectURL, "redirect URL", settings.DefaultRedirectURL},
+		"maplist":                {&mapList, "comma-separated maps for the current game mode. Use 'all' to append all available map", settings.DefaultMaplist},
+		"webadmin":               {&enableWebAdmin, "enable WebAdmin panel", settings.DefaultEnableWebAdmin},
+		"mapvote":                {&enableMapVote, "enable map voting", settings.DefaultEnableMapVote},
+		"mapvote-repeatlimit":    {&mapVoteRepeatLimit, "number of maps to be played before a map can repeat", settings.DefaultMapVoteRepeatLimit},
+		"adminpause":             {&enableAdminPause, "allow admin to pause game", settings.DefaultEnableAdminPause},
+		"noweaponthrow":          {&disableWeaponThrow, "disable weapon throwing", settings.DefaultDisableWeaponThrow},
+		"noweaponshake":          {&disableWeaponShake, "disable weapon-induced screen shake", settings.DefaultDisableWeaponShake},
+		"thirdperson":            {&enableThirdPerson, "enable third-person view", settings.DefaultEnableThirdPerson},
+		"lowgore":                {&enableLowGore, "reduce gore", settings.DefaultEnableLowGore},
+		"uncap":                  {&uncap, "uncap the frame rate", settings.DefaultUncap},
+		"unsecure":               {&unsecure, "disable VAC (Valve Anti-Cheat)", settings.DefaultUnsecure},
+		"nosteam":                {&noSteam, "start the server without calling SteamCMD", settings.DefaultNoSteam},
+		"novalidate":             {&disableValidation, "skip server files integrity check", settings.DefaultNoValidate},
+		"autorestart":            {&enableAutoRestart, "restart server on crash", settings.DefaultAutoRestart},
+		"mutloader":              {&enableMutloader, "enable MutLoader (override inline mutators)", settings.DefaultEnableMutLoader},
+		"kfpatcher":              {&enableKFPatcher, "enable KFPatcher", settings.DefaultEnableKFPatcher},
+		"hideperks":              {&enableShowPerks, "(KFPatcher) hide perks", settings.DefaultKFPHidePerks},
+		"nozedtime":              {&disableZEDTime, "(KFPatcher) disable ZED time", settings.DefaultKFPDisableZedTime},
+		"buyeverywhere":          {&enableBuyEverywhere, "(KFPatcher) allow players to shop whenever", settings.DefaultKFPBuyEverywhere},
+		"alltraders":             {&enableAllTraders, "(KFPatcher) make all trader's spots accessible", settings.DefaultKFPEnableAllTraders},
+		"alltraders-message":     {&allTradersMessage, "(KFPatcher) All traders screen message", settings.DefaultKFPAllTradersMessage},
+		"kfunflect-url":          {&kfunflectURL, "(KFPatcher) KFUnflect URL", settings.DefaultKFUnflectURL},
+		"kfpatcher-url":          {&kfpatcherURL, "(KFPatcher) archive URL", settings.DefaultKFPatcherURL},
+		"log-to-file":            {&enableFileLogging, "enable file logging", settings.DefaultLogToFile},
+		"log-level":              {&logLevel, "log level (info, debug, warn, error)", settings.DefaultLogLevel},
+		"log-file":               {&logFilePath, "log file path", settings.DefaultLogFile},
+		"log-file-format":        {&logFileFormat, "log format (text or json)", settings.DefaultLogFileFormat},
+		"log-max-size":           {&logMaxSize, "max log file size (MB)", settings.DefaultLogMaxSize},
+		"log-max-backups":        {&logMaxBackups, "max number of old log files to keep", settings.DefaultLogMaxBackups},
+		"log-max-age":            {&logMaxAge, "max age of a log file (days)", settings.DefaultLogMaxAge},
+		"steamcmd-root":          {&steamRootDir, "SteamCMD root directory", path.Join(userHome, "steamcmd")},
+		"steamcmd-appinstalldir": {&steamAppInstallDir, "server installatation directory", path.Join(userHome, "gameserver")},
 	}
 
 	for flag, data := range flags {
@@ -112,22 +114,25 @@ func BuildRootCommand() *cobra.Command {
 			val := data.Value.(*bool)
 			rootCmd.Flags().BoolVar(val, flag, v, data.Desc)
 		}
-		viper.BindEnv(flag)
+
+		// SteamCMD-related configurations don't use the 'KF' prefix
+		if strings.HasPrefix(flag, "steamcmd") {
+			envName := strings.ToUpper(strings.ReplaceAll(flag, "-", "_"))
+			viper.BindEnv(flag, envName)
+		} else {
+			viper.BindEnv(flag)
+		}
 		viper.BindPFlag(flag, rootCmd.Flags().Lookup(flag))
 	}
 
-	viper.BindEnv("STEAMCMD_ROOT")
-	viper.BindEnv("STEAMCMD_APPINSTALLDIR")
 	viper.BindEnv("STEAMACC_USERNAME")
 	viper.BindEnv("STEAMACC_PASSWORD")
 	viper.BindEnv("KF_EXTRAARGS")
 
-	viper.SetDefault("STEAMCMD_ROOT", path.Join(userHome, "steamcmd"))
-	viper.SetDefault("STEAMCMD_APPINSTALLDIR", path.Join(userHome, "gameserver"))
 	viper.SetDefault("STEAMACC_USERNAME", settings.DefaultSteamLogin)
 
-	viper.SetEnvPrefix("KF")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.SetEnvPrefix("KF")
 	viper.AutomaticEnv()
 
 	return rootCmd

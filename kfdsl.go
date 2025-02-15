@@ -41,7 +41,7 @@ const (
 )
 
 func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
-	steamCMD := steamcmd.NewSteamCMD(viper.GetString("STEAMCMD_ROOT"), ctx)
+	steamCMD := steamcmd.NewSteamCMD(viper.GetString("steamcmd-root"), ctx)
 
 	if !steamCMD.IsAvailable() {
 		return fmt.Errorf("unable to locate SteamCMD in '%s', please install it first", steamCMD.RootDirectory())
@@ -53,8 +53,8 @@ func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 	}
 
 	// Generate the Steam install script
-	installScript := path.Join(viper.GetString("STEAMCMD_ROOT"), "kfds_install_script.txt")
-	serverInstallDir := viper.GetString("STEAMCMD_APPINSTALLDIR")
+	installScript := path.Join(viper.GetString("steamcmd-root"), "kfds_install_script.txt")
+	serverInstallDir := viper.GetString("steamcmd-appinstalldir")
 
 	log.Logger.Info("Writing the KF Dedicated Server install script...", "scriptPath", installScript)
 	if err := steamCMD.WriteScript(
@@ -69,7 +69,7 @@ func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 	}
 	log.Logger.Info("Install script was successfully written", "scriptPath", installScript)
 
-	log.Logger.Info("Starting SteamCMD...", "rootDir", steamCMD.RootDirectory(), "appInstallRootDir", serverInstallDir)
+	log.Logger.Info("Starting SteamCMD...", "rootDir", steamCMD.RootDirectory(), "appInstallDir", serverInstallDir)
 	if err := steamCMD.RunScript(installScript); err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
@@ -87,7 +87,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		mutators = "MutLoader.MutLoader"
 	}
 
-	rootDir := viper.GetString("STEAMCMD_APPINSTALLDIR")
+	rootDir := viper.GetString("steamcmd-appinstalldir")
 	extraArgs := viper.GetStringSlice("KF_EXTRAARGS")
 
 	gameServer := kfserver.NewKFServer(
@@ -150,7 +150,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 }
 
 func createConfigFile(filePath string) error {
-	defaultIniFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "Default.ini")
+	defaultIniFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", "Default.ini")
 	if !utils.FileExists(defaultIniFilePath) {
 		return fmt.Errorf("default configuration file '%s' not found", defaultIniFilePath)
 	}
@@ -162,7 +162,7 @@ func createConfigFile(filePath string) error {
 }
 
 func updateConfigFile(sett *settings.KFDSLSettings) error {
-	kfiFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", sett.ConfigFile.Value())
+	kfiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", sett.ConfigFile.Value())
 
 	// Duplicate the 'Default.ini' config file
 	if !utils.FileExists(kfiFilePath) {
@@ -259,7 +259,7 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 
 	if len(mapList) > 0 {
 		if mapList[0] == "all" {
-			gameServerRoot := viper.GetString("STEAMCMD_APPINSTALLDIR")
+			gameServerRoot := viper.GetString("steamcmd-appinstalldir")
 			gameModePrefix := kfserver.GetGameModeMapPrefix(gameMode)
 			installedMaps, err := kfserver.GetInstalledMaps(
 				path.Join(gameServerRoot, "Maps"),
@@ -283,9 +283,9 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 }
 
 func setupKFPatcher(sett *settings.KFDSLSettings) error {
-	destDir := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System")
+	destDir := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System")
 
-	// Download KFUnflect and move it into the system directory
+	// Download KFUnflect and move it into the System directory
 	unflectFilePath := path.Join(destDir, "KFUnflect.u")
 	if !utils.FileExists(unflectFilePath) {
 		log.Logger.Debug("Downloading KFUnflect...", "url", sett.KFUnflectURL.RawValue())
@@ -293,15 +293,15 @@ func setupKFPatcher(sett *settings.KFDSLSettings) error {
 		if err != nil {
 			return err
 		}
-		log.Logger.Debug("Moving KFUnflect to the system directory...", "source", unflectFilename, "destination", unflectFilePath)
+		log.Logger.Debug("Moving KFUnflect to the System directory...", "source", unflectFilename, "destination", unflectFilePath)
 		if err := utils.MoveFile(unflectFilename, unflectFilePath); err != nil {
 			return fmt.Errorf("failed to move %s into %s: %v", unflectFilename, destDir, err)
 		}
 	} else {
-		log.Logger.Debug("KFUnflect already exists in the system directory", "path", unflectFilePath)
+		log.Logger.Debug("KFUnflect already exists in the System directory", "path", unflectFilePath)
 	}
 
-	// Download KFPatcher and extract it into the system directory
+	// Download KFPatcher and extract it into the System directory
 	patcherFiles := []string{"KFPatcher.u", "KFPatcher.ucl", "KFPatcherFuncs.ini", "KFPatcherSettings.ini"}
 	needToDownload := false
 	for _, file := range patcherFiles {
@@ -317,19 +317,19 @@ func setupKFPatcher(sett *settings.KFDSLSettings) error {
 		if err != nil {
 			return err
 		}
-		log.Logger.Debug("Extracting KFPatcher to the system directory...", "archive", patcherArchive, "destination", destDir)
+		log.Logger.Debug("Extracting KFPatcher to the System directory...", "archive", patcherArchive, "destination", destDir)
 		if err := utils.UnzipFile(patcherArchive, destDir); err != nil {
 			return fmt.Errorf("failed to unpack %s into %s: %v", patcherArchive, destDir, err)
 		}
 	} else {
-		log.Logger.Debug("KFPatcher files already exist in the system directory", "path", destDir)
+		log.Logger.Debug("KFPatcher files already exist in the System directory", "path", destDir)
 	}
 
 	return nil
 }
 
 func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
-	kfpiFilePath := filepath.Join(viper.GetString("STEAMCMD_APPINSTALLDIR"), "System", "KFPatcherSettings.ini")
+	kfpiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", "KFPatcherSettings.ini")
 	kfpi, err := config.NewKFPIniFile(kfpiFilePath)
 	if err != nil {
 		return err
@@ -353,9 +353,9 @@ func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
 
 func updateGameServerSteamLibs() ([]string, error) {
 	ret := []string{}
-	rootDir := viper.GetString("STEAMCMD_APPINSTALLDIR")
+	rootDir := viper.GetString("steamcmd-appinstalldir")
 	systemDir := path.Join(rootDir, "System")
-	libsDir := path.Join(viper.GetString("STEAMCMD_ROOT"), "linux32")
+	libsDir := path.Join(viper.GetString("steamcmd-root"), "linux32")
 
 	libs := map[string]string{
 		path.Join(libsDir, "steamclient.so"):  path.Join(systemDir, "steamclient.so"),
