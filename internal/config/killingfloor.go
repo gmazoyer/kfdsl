@@ -267,12 +267,25 @@ func (kf *KFIniFile) SetMaxInternetClientRate(rate int) bool {
 
 // ----------------------
 
+func (kf *KFIniFile) ServerMutatorExists(mutator string) bool {
+	section, key := "Engine.GameEngine", "ServerActors"
+	mutator = strings.ToLower(strings.TrimSpace(mutator))
+	actors := kf.GetKeys(section, key)
+	for _, actor := range actors {
+		if strings.EqualFold(strings.ToLower(strings.TrimSpace(actor)), mutator) {
+			return true
+		}
+	}
+	return false
+}
+
 func (kf *KFIniFile) ClearServerMutators() error {
 	section, key := "Engine.GameEngine", "ServerActors"
 	actors := kf.GetKeys(section, key)
 	for index, actor := range actors {
 		act := strings.TrimSpace(actor)
-		if act != "IpDrv.MasterServerUplink" && act != "UWeb.WebServer" { // Ignore Base Actors
+		// Ignore Base Actors
+		if act != "IpDrv.MasterServerUplink" && act != "UWeb.WebServer" {
 			if deleted := kf.DeleteUniqueKey(section, key, &actor, &index); !deleted {
 				return fmt.Errorf("unable to delete ServerActor: %s", actor)
 			}
@@ -285,6 +298,10 @@ func (kf *KFIniFile) SetServerMutators(mutators []string) error {
 	section, key := "Engine.GameEngine", "ServerActors"
 	if len(mutators) > 0 {
 		for _, mutator := range mutators {
+			// Don't add the same mutator twice
+			if kf.ServerMutatorExists(mutator) {
+				continue
+			}
 			if added := kf.SetKey(section, key, mutator, false); !added {
 				return fmt.Errorf("unable to add mutator as ServerActor: %s", mutator)
 			}
