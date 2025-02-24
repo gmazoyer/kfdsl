@@ -2,7 +2,6 @@ package arguments
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/spf13/cast"
 )
@@ -14,29 +13,41 @@ type ParsableArgument interface {
 	IsSensitive() bool
 }
 
+type ParseFunction[T any] func(a *Argument[T]) (T, error)
+
+type FormatFunction[T any] func(a *Argument[T]) string
+
 type Argument[T any] struct {
-	rawValue       string      // Raw input from CLI as string
-	parsedValue    T           // Parsed valuess
-	formattedValue string      // Formatted value or parsed value
-	name           string      // Argument name
-	parserFunc     interface{} // Parser function or raw value
-	formatFunc     interface{} // Format function or string
-	sensitive      bool        // True if the argument contains sensitive data
+	name           string            // Argument name
+	rawValue       T                 // Raw input from CLI
+	parsedValue    T                 // Parsed value
+	formattedValue string            // Formatted value or parsed value
+	parseFunc      ParseFunction[T]  // Parser function or raw value
+	formatFunc     FormatFunction[T] // Format function or string
+	sensitive      bool              // True if the argument contains sensitive data
 }
 
-func NewArgument[T any](rawValue interface{}, name string, parserFunc interface{}, formatFunc interface{}, sensitive bool) *Argument[T] {
-	rawValueStr := cast.ToString(rawValue)
+func NewArgument[T any](name string, rawValue T, parseFunc ParseFunction[T], formatFunc FormatFunction[T], sensitive bool) *Argument[T] {
+	if parseFunc == nil {
+		parseFunc = defaultParser[T]
+	}
+	if formatFunc == nil {
+		formatFunc = defaultFormatter[T]
+	}
 	return &Argument[T]{
-		rawValue:       rawValueStr,
-		formattedValue: rawValueStr,
-		name:           name,
-		parserFunc:     parserFunc,
-		formatFunc:     formatFunc,
-		sensitive:      sensitive,
+		name:       name,
+		rawValue:   rawValue,
+		parseFunc:  parseFunc,
+		formatFunc: formatFunc,
+		sensitive:  sensitive,
 	}
 }
 
-func (a *Argument[T]) RawValue() string {
+func (a *Argument[T]) Name() string {
+	return a.name
+}
+
+func (a *Argument[T]) RawValue() T {
 	return a.rawValue
 }
 
@@ -48,10 +59,6 @@ func (a *Argument[T]) FormattedValue() string {
 	return a.formattedValue
 }
 
-func (a *Argument[T]) Name() string {
-	return a.name
-}
-
 func (a *Argument[T]) IsSensitive() bool {
 	return a.sensitive
 }
@@ -60,108 +67,81 @@ func (a *Argument[T]) String() string {
 	return fmt.Sprintf("%v", a.parsedValue)
 }
 
+// func (a *Argument[T]) SetValue(v T) {
+// 	a.parsedValue = v
+// }
+
+// func (a *Argument[T]) SetFormattedValue(v string) {
+// 	a.formattedValue = v
+// }
+
+func (a *Argument[T]) SetParserFunction(f ParseFunction[T]) {
+	a.parseFunc = f
+}
+
+func (a *Argument[T]) SetFormatterFunction(f FormatFunction[T]) {
+	a.formatFunc = f
+}
+
 func (a *Argument[T]) Parse() error {
-	var pValue T
+	pVal, err := a.parseFunc(a)
+	if err != nil {
+		return err
+	}
+	a.parsedValue = pVal
+	a.formattedValue = a.formatFunc(a)
+	return nil
+}
+
+func convertType[T any](val any) (T, error) {
+	v, ok := val.(T)
+	if !ok {
+		return v, fmt.Errorf("type assertion failed: expected %T, got %T", v, val)
+	}
+	return v, nil
+}
+
+func defaultParser[T any](a *Argument[T]) (T, error) {
 	var err error
 
-	// Use a centralized fallback parser for type inference
-	fallbackParser := func(value interface{}) (T, error) {
-		switch any(pValue).(type) {
-		case int:
-			val, err := cast.ToIntE(value)
-			return any(val).(T), err
-		case float64:
-			val, err := cast.ToFloat64E(value)
-			return any(val).(T), err
-		case bool:
-			val, err := cast.ToBoolE(value)
-			return any(val).(T), err
-		case string:
-			return any(value).(T), nil
-		default:
-			return pValue, fmt.Errorf("unsupported type; provide a custom parser or valid type")
+	rv := a.rawValue
+	switch val := any(rv).(type) {
+	case int8, int16, int32, int64:
+		i, err := cast.ToInt64E(val)
+		if err == nil {
+			return convertType[T](i)
 		}
+	case uint, uint8, uint16, uint32, uint64:
+		u, err := cast.ToUint64E(val)
+		if err == nil {
+			return convertType[T](u)
+		}
+	case int:
+		i, err := cast.ToIntE(val)
+		if err == nil {
+			return convertType[T](i)
+		}
+	case float64:
+		f, err := cast.ToFloat64E(val)
+		if err == nil {
+			return convertType[T](f)
+		}
+	case bool:
+		b, err := cast.ToBoolE(val)
+		if err == nil {
+			return convertType[T](b)
+		}
+	case string:
+		s, err := cast.ToStringE(val)
+		if err == nil {
+			return convertType[T](s)
+		}
+	default:
+		return *new(T), fmt.Errorf("unsupported type; provide a custom parser or valid type")
 	}
+	return *new(T), err
+}
 
-	// Parse using the provided custom parser or fallback to default logic
-	if a.parserFunc != nil {
-		parserValue := reflect.ValueOf(a.parserFunc)
-		if parserValue.Kind() == reflect.Func {
-			expectedType := parserValue.Type().In(0) // first parameter type
-			var rawValue reflect.Value
-
-			// Convert raw value to the expected type
-			switch expectedType.Kind() {
-			case reflect.Int:
-				parsed, err := cast.ToIntE(a.rawValue)
-				if err != nil {
-					return fmt.Errorf("failed to cast raw input to int: %w", err)
-				}
-				rawValue = reflect.ValueOf(parsed)
-			case reflect.Float64:
-				parsed, err := cast.ToFloat64E(a.rawValue)
-				if err != nil {
-					return fmt.Errorf("failed to cast raw input to float64: %w", err)
-				}
-				rawValue = reflect.ValueOf(parsed)
-			case reflect.Bool:
-				parsed, err := cast.ToBoolE(a.rawValue)
-				if err != nil {
-					return fmt.Errorf("failed to cast raw input to boolean: %w", err)
-				}
-				rawValue = reflect.ValueOf(parsed)
-			case reflect.String:
-				rawValue = reflect.ValueOf(a.rawValue)
-			default:
-				return fmt.Errorf("unsupported parser input type: %v", expectedType)
-			}
-
-			// Call the parser function with the converted value
-			results := parserValue.Call([]reflect.Value{rawValue})
-			if len(results) == 2 && !results[1].IsNil() {
-				err = results[1].Interface().(error)
-				if err != nil {
-					return err
-				}
-			}
-			parsedValue, ok := results[0].Interface().(T)
-			if !ok {
-				return fmt.Errorf("parser function returned unexpected type: expected %T, got %T", pValue, results[0].Interface())
-			}
-			pValue = parsedValue
-		} else {
-			return fmt.Errorf("argument parser must be a function of type func(T) (T, error)")
-		}
-	} else {
-		pValue, err = fallbackParser(a.rawValue)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Formatted value
-	var fText string
-	if a.formatFunc != nil {
-		formatFuncValue := reflect.ValueOf(a.formatFunc)
-		if formatFuncValue.Kind() == reflect.Func {
-			results := formatFuncValue.Call([]reflect.Value{reflect.ValueOf(pValue)})
-			if len(results) == 1 {
-				fText = results[0].Interface().(string)
-			} else {
-				fText = a.rawValue
-			}
-		} else {
-			if str, ok := a.formatFunc.(string); ok {
-				fText = str
-			} else {
-				fText = a.rawValue
-			}
-		}
-	} else {
-		fText = fmt.Sprintf("%v", pValue)
-	}
-
-	a.parsedValue = pValue
-	a.formattedValue = fText
-	return nil
+func defaultFormatter[T any](a *Argument[T]) string {
+	return fmt.Sprintf("%v", a.Value())
 }

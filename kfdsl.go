@@ -188,6 +188,7 @@ func updateConfigFile(sett *settings.KFDSLSettings) error {
 		newConfigUpdater(sett.GameLength.Name(), func() any { return kfi.GetGameLength() }, func(v any) bool { return kfi.SetGameLength(v.(int)) }, sett.GameLength.Value()),
 		newConfigUpdater(sett.FriendlyFire.Name(), func() any { return kfi.GetFriendlyFireRate() }, func(v any) bool { return kfi.SetFriendlyFireRate(v.(float64)) }, sett.FriendlyFire.Value()),
 		newConfigUpdater(sett.MaxPlayers.Name(), func() any { return kfi.GetMaxPlayers() }, func(v any) bool { return kfi.SetMaxPlayers(v.(int)) }, sett.MaxPlayers.Value()),
+		newConfigUpdater(sett.MaxSpectators.Name(), func() any { return kfi.GetMaxSpectators() }, func(v any) bool { return kfi.SetMaxSpectators(v.(int)) }, sett.MaxSpectators.Value()),
 		newConfigUpdater(sett.Password.Name(), func() any { return kfi.GetPassword() }, func(v any) bool { return kfi.SetPassword(v.(string)) }, sett.Password.Value()),
 		newConfigUpdater(sett.Region.Name(), func() any { return kfi.GetRegion() }, func(v any) bool { return kfi.SetRegion(v.(int)) }, sett.Region.Value()),
 		newConfigUpdater(sett.AdminName.Name(), func() any { return kfi.GetAdminName() }, func(v any) bool { return kfi.SetAdminName(v.(string)) }, sett.AdminName.Value()),
