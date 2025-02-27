@@ -98,6 +98,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 	}
 
 	rootDir := viper.GetString("steamcmd-appinstalldir")
+	configFileName := sett.ConfigFile.Value()
 	startupMap := sett.StartupMap.Value()
 	gameMode := sett.GameMode.Value()
 	unsecure := sett.Unsecure.Value()
@@ -106,6 +107,7 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 
 	gameServer := kfserver.NewKFServer(
 		rootDir,
+		configFileName,
 		startupMap,
 		gameMode,
 		unsecure,
@@ -125,7 +127,6 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		return nil, fmt.Errorf("unable to locate the KF Dedicated Server files in '%s', please install using SteamCMD", gameServer.RootDirectory())
 	}
 
-	configFileName := sett.ConfigFile.Value()
 	log.Logger.Info("Updating the KF Dedicated Server configuration file...", "file", configFileName)
 	if err := updateConfigFile(sett); err != nil {
 		return nil, fmt.Errorf("failed to update the KF Dedicated Server configuration file %s: %w", configFileName, err)

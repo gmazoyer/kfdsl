@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/K4rian/kfdsl/internal/services/base"
 	"github.com/K4rian/kfdsl/internal/utils"
@@ -11,17 +12,19 @@ import (
 
 type KFServer struct {
 	*base.BaseService
-	startupMap string
-	gameMode   string
-	unsecure   bool
-	maxPlayers int
-	mutators   string
-	extraArgs  []string
-	executable string
+	configFileName string
+	startupMap     string
+	gameMode       string
+	unsecure       bool
+	maxPlayers     int
+	mutators       string
+	extraArgs      []string
+	executable     string
 }
 
 func NewKFServer(
 	rootDir string,
+	configFileName string,
 	startupMap string,
 	gameMode string,
 	unsecure bool,
@@ -31,14 +34,15 @@ func NewKFServer(
 	ctx context.Context,
 ) *KFServer {
 	kfs := &KFServer{
-		BaseService: base.NewBaseService("KFServer", rootDir, ctx),
-		startupMap:  startupMap,
-		gameMode:    gameMode,
-		unsecure:    unsecure,
-		maxPlayers:  maxPlayers,
-		mutators:    mutators,
-		extraArgs:   extraArgs,
-		executable:  path.Join(rootDir, "System", "ucc-bin"),
+		BaseService:    base.NewBaseService("KFServer", rootDir, ctx),
+		configFileName: configFileName,
+		startupMap:     startupMap,
+		gameMode:       gameMode,
+		unsecure:       unsecure,
+		maxPlayers:     maxPlayers,
+		mutators:       mutators,
+		extraArgs:      extraArgs,
+		executable:     path.Join(rootDir, "System", "ucc-bin"),
 	}
 	return kfs
 }
@@ -53,15 +57,30 @@ func (s *KFServer) Start(autoRestart bool) error {
 }
 
 func (s *KFServer) buildCommandLine() []string {
-	argsStr := fmt.Sprintf(
-		"%s.rom?game=%s?VACSecured=%t?MaxPlayers=%d",
-		s.startupMap, s.gameMode, !s.unsecure, s.maxPlayers)
+	var argsBuilder strings.Builder
 
+	// Base command
+	argsBuilder.WriteString(s.startupMap)
+	argsBuilder.WriteString(".rom?game=")
+	argsBuilder.WriteString(s.gameMode)
+	argsBuilder.WriteString("?VACSecured=")
+	argsBuilder.WriteString(fmt.Sprintf("%t", !s.unsecure))
+	argsBuilder.WriteString("?MaxPlayers=")
+	argsBuilder.WriteString(fmt.Sprintf("%d", s.maxPlayers))
+
+	// Append Mutator(s) if provided
 	if s.mutators != "" {
-		argsStr += fmt.Sprintf("?Mutator=%s", s.mutators)
+		argsBuilder.WriteString("?Mutator=")
+		argsBuilder.WriteString(s.mutators)
 	}
 
-	args := append([]string{s.executable}, "server", argsStr, "-nohomedir")
+	// Specify the configuration file to use
+	iniFile := "ini=" + s.configFileName
+
+	// Final command
+	args := []string{s.executable, "server", argsBuilder.String(), iniFile, "-nohomedir"}
+
+	// Append extra arguments if provided
 	if len(s.extraArgs) > 0 {
 		args = append(args, s.extraArgs...)
 	}
