@@ -203,7 +203,15 @@ func (f *GenericIniFile) Save(filePath string) error {
 		// Add a newline between sections
 		_, _ = writer.WriteString("\n")
 	}
-	writer.Flush()
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush file '%s': %v", filePath, err)
+	}
+
+	err = file.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync file '%s': %v", filePath, err)
+	}
 	return nil
 }
 

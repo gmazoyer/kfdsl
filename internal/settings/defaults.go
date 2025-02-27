@@ -2,8 +2,8 @@ package settings
 
 const (
 	DefaultConfigFile           = "KillingFloor.ini"
-	DefaultServerName           = "KF Server"
-	DefaultShortName            = "KFS"
+	DefaultServerName           = "Killing Floor Server"
+	DefaultShortName            = "KF Server"
 	DefaultGamePort             = 7707
 	DefaultWebAdminPort         = 8075
 	DefaultGameSpyPort          = 7717
@@ -15,7 +15,7 @@ const (
 	DefaultMaxPlayers           = 6
 	DefaultMaxSpectators        = 6
 	DefaultPassword             = ""
-	DefaultRegion               = 1
+	DefaultRegion               = 0
 	DefaultAdminName            = ""
 	DefaultAdminMail            = ""
 	DefaultAdminPassword        = ""

@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -41,19 +42,23 @@ const (
 )
 
 func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
-	steamCMD := steamcmd.NewSteamCMD(viper.GetString("steamcmd-root"), ctx)
+	rootDir := viper.GetString("steamcmd-root")
+	steamCMD := steamcmd.NewSteamCMD(rootDir, ctx)
+
+	log.Logger.Debug("Initializing SteamCMD",
+		"function", "startSteamCMD", "rootDir", rootDir)
 
 	if !steamCMD.IsAvailable() {
-		return fmt.Errorf("unable to locate SteamCMD in '%s', please install it first", steamCMD.RootDirectory())
+		return fmt.Errorf("SteamCMD not found in %s. Please install it manually", steamCMD.RootDirectory())
 	}
 
 	// Read Steam Account Credentials
 	if err := readSteamCredentials(sett); err != nil {
-		return fmt.Errorf("credentials error: %v", err)
+		return fmt.Errorf("failed to read Steam credentials: %w", err)
 	}
 
 	// Generate the Steam install script
-	installScript := path.Join(viper.GetString("steamcmd-root"), "kfds_install_script.txt")
+	installScript := filepath.Join(rootDir, "kfds_install_script.txt")
 	serverInstallDir := viper.GetString("steamcmd-appinstalldir")
 
 	log.Logger.Info("Writing the KF Dedicated Server install script...", "scriptPath", installScript)
@@ -75,9 +80,14 @@ func startSteamCMD(sett *settings.KFDSLSettings, ctx context.Context) error {
 	}
 
 	// Block until SteamCMD finishes
+	log.Logger.Debug("Wait till SteamCMD finishes",
+		"function", "startSteamCMD", "rootDir", rootDir)
+	start := time.Now()
 	if err := steamCMD.Wait(); err != nil {
 		return err
 	}
+	log.Logger.Debug("SteamCMD process completed",
+		"function", "startSteamCMD", "rootDir", rootDir, "elapsedTime", time.Since(start))
 	return nil
 }
 
@@ -88,44 +98,54 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 	}
 
 	rootDir := viper.GetString("steamcmd-appinstalldir")
+	startupMap := sett.StartupMap.Value()
+	gameMode := sett.GameMode.Value()
+	unsecure := sett.Unsecure.Value()
+	maxPlayers := sett.MaxPlayers.Value()
 	extraArgs := viper.GetStringSlice("KF_EXTRAARGS")
 
 	gameServer := kfserver.NewKFServer(
 		rootDir,
-		sett.StartupMap.Value(),
-		sett.GameMode.Value(),
-		sett.Unsecure.Value(),
-		sett.MaxPlayers.Value(),
+		startupMap,
+		gameMode,
+		unsecure,
+		maxPlayers,
 		mutators,
 		extraArgs,
 		ctx,
+	)
+
+	log.Logger.Debug("Initializing KF Dedicated Server",
+		"function", "startGameServer", "rootDir", rootDir, "startupMap", startupMap,
+		"gameMode", gameMode, "unsecure", unsecure, "maxPlayers", maxPlayers,
+		"mutators", mutators, "extraArgs", extraArgs,
 	)
 
 	if !gameServer.IsAvailable() {
 		return nil, fmt.Errorf("unable to locate the KF Dedicated Server files in '%s', please install using SteamCMD", gameServer.RootDirectory())
 	}
 
-	configFilePath := sett.ConfigFile.Value()
-	log.Logger.Info("Updating the KF Dedicated Server configuration file...", "configFile", configFilePath)
+	configFileName := sett.ConfigFile.Value()
+	log.Logger.Info("Updating the KF Dedicated Server configuration file...", "file", configFileName)
 	if err := updateConfigFile(sett); err != nil {
-		return nil, fmt.Errorf("failed to update the KF Dedicated Server configuration file '%s': %v", configFilePath, err)
+		return nil, fmt.Errorf("failed to update the KF Dedicated Server configuration file %s: %w", configFileName, err)
 	}
-	log.Logger.Info("Server configuration file successfully updated", "configFile", configFilePath)
+	log.Logger.Info("Server configuration file successfully updated", "file", configFileName)
 
 	if sett.EnableKFPatcher.Value() {
 		log.Logger.Info("Setting up KFPatcher configuration...")
 		err := setupKFPatcher(sett)
 		if err != nil {
-			return nil, fmt.Errorf("failed to setup KFPatcher: %v", err)
+			return nil, fmt.Errorf("failed to setup KFPatcher: %w", err)
 		}
 		log.Logger.Info("KFPatcher setup completed successfully")
 
 		kfpConfigFilePath := filepath.Join(rootDir, "System", "KFPatcherSettings.ini")
-		log.Logger.Info("Updating the KFPatcher configuration file...", "configFile", kfpConfigFilePath)
+		log.Logger.Info("Updating the KFPatcher configuration file...", "file", kfpConfigFilePath)
 		if err := updateKFPatcherConfigFile(sett); err != nil {
-			return nil, fmt.Errorf("failed to update the KFPatcher configuration file '%s': %v", kfpConfigFilePath, err)
+			return nil, fmt.Errorf("failed to update the KFPatcher configuration file %s: %w", kfpConfigFilePath, err)
 		}
-		log.Logger.Info("KFPatcher configuration file successfully updated", "configFile", kfpConfigFilePath)
+		log.Logger.Info("KFPatcher configuration file successfully updated", "file", kfpConfigFilePath)
 	}
 
 	log.Logger.Info("Verifying KF Dedicated Server Steam libraries for updates...")
@@ -139,43 +159,59 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 			log.Logger.Info("All server Steam libraries are up-to-date")
 		}
 	} else {
-		log.Logger.Error("Unable to update the KF Dedicated Server Steam libraries", "err", err)
+		log.Logger.Error("Unable to update the KF Dedicated Server Steam libraries", "error", err)
 	}
 
 	log.Logger.Info("Starting the KF Dedicated Server...", "rootDir", gameServer.RootDirectory(), "autoRestart", sett.AutoRestart.Value())
 	if err := gameServer.Start(sett.AutoRestart.Value()); err != nil {
-		return nil, fmt.Errorf("failed to start the KF Dedicated Server: %v", err)
+		return nil, fmt.Errorf("failed to start the KF Dedicated Server: %w", err)
 	}
 	return gameServer, nil
 }
 
-func createConfigFile(filePath string) error {
-	defaultIniFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", "Default.ini")
-	if !utils.FileExists(defaultIniFilePath) {
-		return fmt.Errorf("default configuration file '%s' not found", defaultIniFilePath)
-	}
+func extractDefaultConfigFile(filename string, filePath string) error {
+	defaultIniFilePath := filepath.Join("assets/configs", filename)
 
-	if err := utils.CopyFile(defaultIniFilePath, filePath); err != nil {
-		return fmt.Errorf("failed to copy '%s' file to '%s'", defaultIniFilePath, filePath)
+	log.Logger.Debug("Extracting default configuration file",
+		"function", "extractDefaultConfigFile", "sourceFile", defaultIniFilePath, "destFile", filePath)
+
+	if err := ExtractEmbedFile(defaultIniFilePath, filePath); err != nil {
+		return fmt.Errorf("failed to extract default config file %s: %w", filename, err)
 	}
 	return nil
 }
 
 func updateConfigFile(sett *settings.KFDSLSettings) error {
-	kfiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", sett.ConfigFile.Value())
+	kfiFileName := sett.ConfigFile.Value()
+	kfiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", kfiFileName)
 
-	// Duplicate the 'Default.ini' config file
+	log.Logger.Debug("Updating server configuration file",
+		"function", "updateConfigFile", "file", kfiFilePath)
+
+	// Extract the default KillingFloor.ini if it doesn't exists
 	if !utils.FileExists(kfiFilePath) {
-		if err := createConfigFile(kfiFilePath); err != nil {
+		log.Logger.Debug("Missing server configuration file. Extracting the default one...",
+			"function", "updateConfigFile", "file", kfiFilePath)
+
+		if err := extractDefaultConfigFile(kfiFileName, kfiFilePath); err != nil {
+			log.Logger.Warn("Failed to extract the default server configuration file",
+				"function", "updateConfigFile", "file", kfiFilePath, "error", err)
 			return err
 		}
+		log.Logger.Debug("Default server configuration file successfully extracted",
+			"function", "updateConfigFile", "file", kfiFilePath)
 	}
 
 	// Read the ini file
 	kfi, err := config.NewKFIniFile(kfiFilePath)
 	if err != nil {
+		log.Logger.Warn("Failed to read the server configuration file",
+			"function", "updateConfigFile", "file", kfiFilePath, "error", err)
 		return err
 	}
+
+	log.Logger.Debug("Server configuration file successfully loaded",
+		"function", "updateConfigFile", "file", kfiFilePath)
 
 	// Generics
 	cuList := []configUpdater[any]{
@@ -203,47 +239,80 @@ func updateConfigFile(sett *settings.KFDSLSettings) error {
 	}
 	for _, conf := range cuList {
 		currentValue := conf.gv()
-		if currentValue != conf.nv && !conf.sv(conf.nv) {
-			return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+		if currentValue != conf.nv {
+			if !conf.sv(conf.nv) {
+				log.Logger.Warn(fmt.Sprintf("Failed to update the server %s configuration", conf.name),
+					"function", "updateConfigFile", "file", kfiFilePath, "confName", conf.name, "confOldValue", currentValue, "confNewValue", conf.nv)
+				return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+			}
+			log.Logger.Debug(fmt.Sprintf("Updated server %s configuration", conf.name),
+				"function", "updateConfigFile", "file", kfiFilePath, "confName", conf.name, "confOldValue", currentValue, "confNewValue", conf.nv)
 		}
 	}
 
 	// Special cases
-	clientRate := settings.DefaultMaxInternetClientRate
+	currentClientRate := kfi.GetMaxInternetClientRate()
+	newClientRate := settings.DefaultMaxInternetClientRate
 	if sett.Uncap.Value() {
-		clientRate = 15000
+		newClientRate = 15000
 	}
-	if kfi.GetMaxInternetClientRate() != clientRate &&
-		!kfi.SetMaxInternetClientRate(clientRate) {
-		return fmt.Errorf("[Max Internet Client Rate]: failed to set the new value: %d", clientRate)
+	if currentClientRate != newClientRate && !kfi.SetMaxInternetClientRate(newClientRate) {
+		log.Logger.Warn("Failed to update the server MaxInternetClientRate configuration",
+			"function", "updateConfigFile", "file", kfiFilePath, "confName", "MaxInternetClientRate", "confOldValue", currentClientRate, "confNewValue", newClientRate)
+		return fmt.Errorf("[MaxInternetClientRate]: failed to set the new value: %d", newClientRate)
 	}
 
 	if err := updateConfigFileServerMutators(kfi, sett); err != nil {
-		return fmt.Errorf("[Server Mutators]: %v", err)
+		return fmt.Errorf("[ServerMutators]: %w", err)
 	}
 
 	if err := updateConfigFileMaplist(kfi, sett); err != nil {
-		return fmt.Errorf("[Maplist]: %v", err)
+		return fmt.Errorf("[Maplist]: %w", err)
 	}
-	return kfi.Save(kfiFilePath)
+
+	// Save the ini file
+	err = kfi.Save(kfiFilePath)
+	if err == nil {
+		log.Logger.Debug("Server configuration file successfully saved",
+			"function", "updateConfigFile", "file", kfiFilePath)
+	} else {
+		log.Logger.Error("Failed to save the server configuration file",
+			"function", "updateConfigFile", "file", kfiFilePath, "error", err)
+	}
+	return err
 }
 
 func updateConfigFileServerMutators(iniFile *config.KFIniFile, sett *settings.KFDSLSettings) error {
 	mutatorsStr := sett.ServerMutators.Value()
-	mutators := strings.FieldsFunc(mutatorsStr, func(r rune) bool { return r == ',' })
+	mutatorsList := strings.FieldsFunc(mutatorsStr, func(r rune) bool { return r == ',' })
 
-	if sett.EnableKFPatcher.Value() && !strings.Contains(mutatorsStr, "KFPatcher") {
-		mutators = append(mutators, "KFPatcher.Mut")
+	log.Logger.Debug("Updating configuration file server mutators",
+		"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList)
+
+	// If KFPatcher is enabled, add its mutator to the list if not already present
+	if sett.EnableKFPatcher.Value() && !strings.Contains(strings.ToLower(mutatorsStr), "kfpatcher") {
+		log.Logger.Debug("KFPatcher is enabled, adding its mutator to the server mutator list",
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutator", "KFPatcher.Mut")
+		mutatorsList = append(mutatorsList, "KFPatcher.Mut")
 	}
 
-	if len(mutators) > 0 {
-		if err := iniFile.SetServerMutators(mutators); err != nil {
+	// Update mutators or clear if empty
+	if len(mutatorsList) > 0 {
+		if err := iniFile.SetServerMutators(mutatorsList); err != nil {
+			log.Logger.Warn("Failed to set server mutators",
+				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList, "error", err)
 			return err
 		}
+		log.Logger.Debug("Server mutators successfully updated",
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList)
 	} else {
 		if err := iniFile.ClearServerMutators(); err != nil {
+			log.Logger.Warn("Failed to clear existing server mutators",
+				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "error", err)
 			return err
 		}
+		log.Logger.Debug("Server mutators cleared",
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath)
 	}
 	return nil
 }
@@ -251,34 +320,59 @@ func updateConfigFileServerMutators(iniFile *config.KFIniFile, sett *settings.KF
 func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSettings) error {
 	gameMode := sett.GameMode.RawValue()
 
+	log.Logger.Debug("Updating configuration file maplist",
+		"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
+
 	sectionName := kfserver.GetGameModeMaplistName(gameMode)
 	if sectionName == "" {
+		log.Logger.Warn("Undefined maplist section name",
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
 		return fmt.Errorf("undefined section name for game mode: %s", gameMode)
 	}
 
 	mapList := strings.FieldsFunc(sett.Maplist.Value(), func(r rune) bool { return r == ',' })
 
+	log.Logger.Debug("Maplist parsed",
+		"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName,
+		"gameMode", gameMode, "list", mapList)
+
 	if len(mapList) > 0 {
 		if mapList[0] == "all" {
+			// Fetch and set all available maps
 			gameServerRoot := viper.GetString("steamcmd-appinstalldir")
 			gameModePrefix := kfserver.GetGameModeMapPrefix(gameMode)
-			installedMaps, err := kfserver.GetInstalledMaps(
-				path.Join(gameServerRoot, "Maps"),
-				gameModePrefix,
-			)
+
+			installedMaps, err := kfserver.GetInstalledMaps(path.Join(gameServerRoot, "Maps"), gameModePrefix)
 			if err != nil {
-				return fmt.Errorf("unable to fetch available maps for game mode '%s': %v", gameMode, err)
+				log.Logger.Warn("Unable to fetch installed maps",
+					"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
+				return fmt.Errorf("unable to fetch available maps for game mode '%s': %w", gameMode, err)
 			}
+
+			log.Logger.Debug("Using all maps for the current game mode",
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName,
+				"gameMode", gameMode, "gameModePrefix", gameModePrefix, "serverRootDir", gameServerRoot, "installedMaps", installedMaps)
+
 			mapList = installedMaps
 		}
 
+		// Set the map list in the configuration file
 		if err := iniFile.SetMaplist(sectionName, mapList); err != nil {
+			log.Logger.Warn("Failed to set maplist",
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName, "error", err)
 			return err
 		}
+		log.Logger.Debug("Maplist successfully updated",
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName)
 	} else {
+		// Clear the maplist
 		if err := iniFile.ClearMaplist(sectionName); err != nil {
+			log.Logger.Warn("Failed to clear maplist",
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName, "error", err)
 			return err
 		}
+		log.Logger.Debug("Maplist cleared",
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName)
 	}
 	return nil
 }
@@ -286,55 +380,89 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 func setupKFPatcher(sett *settings.KFDSLSettings) error {
 	destDir := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System")
 
+	log.Logger.Debug("Starting KFPatcher setup",
+		"function", "setupKFPatcher", "destDir", destDir)
+
 	// Download KFUnflect and move it into the System directory
 	unflectFilePath := path.Join(destDir, "KFUnflect.u")
 	if !utils.FileExists(unflectFilePath) {
-		log.Logger.Debug("Downloading KFUnflect...", "url", sett.KFUnflectURL.RawValue())
-		unflectFilename, err := utils.DownloadFile(sett.KFUnflectURL.RawValue())
+		url := sett.KFUnflectURL.RawValue()
+		log.Logger.Debug("Downloading KFUnflect...",
+			"function", "setupKFPatcher", "url", url)
+
+		unflectFilename, err := utils.DownloadFile(url)
 		if err != nil {
+			log.Logger.Warn("Failed to download KFUnflect",
+				"function", "setupKFPatcher", "url", url, "error", err)
 			return err
 		}
-		log.Logger.Debug("Moving KFUnflect to the System directory...", "source", unflectFilename, "destination", unflectFilePath)
+
+		log.Logger.Debug("Moving KFUnflect to the System directory...",
+			"function", "setupKFPatcher", "source", unflectFilename, "destination", unflectFilePath)
 		if err := utils.MoveFile(unflectFilename, unflectFilePath); err != nil {
-			return fmt.Errorf("failed to move %s into %s: %v", unflectFilename, destDir, err)
+			log.Logger.Warn("Failed to move KFUnflect",
+				"function", "setupKFPatcher", "source", unflectFilename, "destination", unflectFilePath, "error", err)
+			return fmt.Errorf("failed to move %s into %s: %w", unflectFilename, destDir, err)
 		}
 	} else {
-		log.Logger.Debug("KFUnflect already exists in the System directory", "path", unflectFilePath)
+		log.Logger.Debug("KFUnflect already exists in the System directory",
+			"function", "setupKFPatcher", "path", unflectFilePath)
 	}
 
 	// Download KFPatcher and extract it into the System directory
 	patcherFiles := []string{"KFPatcher.u", "KFPatcher.ucl", "KFPatcherFuncs.ini", "KFPatcherSettings.ini"}
-	needToDownload := false
+
+	var missingFiles []string
 	for _, file := range patcherFiles {
-		needToDownload = !utils.FileExists(filepath.Join(destDir, file))
-		if needToDownload {
-			break
+		if !utils.FileExists(filepath.Join(destDir, file)) {
+			missingFiles = append(missingFiles, file)
 		}
 	}
+	needToDownload := len(missingFiles) > 0
 
 	if needToDownload {
-		log.Logger.Debug("Downloading KFPatcher...", "url", sett.KFPatcherURL.RawValue())
-		patcherArchive, err := utils.DownloadFile(sett.KFPatcherURL.RawValue())
+		url := sett.KFPatcherURL.RawValue()
+		log.Logger.Debug("Downloading KFPatcher...",
+			"function", "setupKFPatcher", "url", url, "files", missingFiles)
+
+		patcherArchive, err := utils.DownloadFile(url)
 		if err != nil {
+			log.Logger.Warn("Failed to download KFPatcher",
+				"function", "setupKFPatcher", "url", url, "error", err)
 			return err
 		}
-		log.Logger.Debug("Extracting KFPatcher to the System directory...", "archive", patcherArchive, "destination", destDir)
+
+		log.Logger.Debug("Extracting KFPatcher to the System directory...",
+			"function", "setupKFPatcher", "archive", patcherArchive, "destination", destDir)
+
 		if err := utils.UnzipFile(patcherArchive, destDir); err != nil {
-			return fmt.Errorf("failed to unpack %s into %s: %v", patcherArchive, destDir, err)
+			log.Logger.Warn("Failed to unpack archive",
+				"function", "setupKFPatcher", "archive", patcherArchive, "destination", unflectFilePath, "error", err)
+			return fmt.Errorf("failed to unpack %s into %s: %w", patcherArchive, destDir, err)
 		}
 	} else {
-		log.Logger.Debug("KFPatcher files already exist in the System directory", "path", destDir)
+		log.Logger.Debug("KFPatcher files already exist in the System directory",
+			"function", "setupKFPatcher", "path", destDir)
 	}
-
 	return nil
 }
 
 func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
 	kfpiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", "KFPatcherSettings.ini")
+
+	log.Logger.Debug("Updating KFPatcher configuration file",
+		"function", "updateKFPatcherConfigFile", "file", kfpiFilePath)
+
+	// Read the ini file
 	kfpi, err := config.NewKFPIniFile(kfpiFilePath)
 	if err != nil {
+		log.Logger.Warn("Failed to read the KFPatcher configuration file",
+			"function", "updateKFPatcherConfigFile", "file", kfpiFilePath, "error", err)
 		return err
 	}
+
+	log.Logger.Debug("KFPatcher configuration file successfully loaded",
+		"function", "updateKFPatcherConfigFile", "file", kfpiFilePath)
 
 	cuList := []configUpdater[any]{
 		newConfigUpdater(sett.KFPHidePerks.Name(), func() any { return kfpi.IsShowPerksEnabled() }, func(v any) bool { return kfpi.SetShowPerksEnabled(v.(bool)) }, !sett.KFPHidePerks.Value()),
@@ -345,11 +473,27 @@ func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
 	}
 	for _, conf := range cuList {
 		currentValue := conf.gv()
-		if currentValue != conf.nv && !conf.sv(conf.nv) {
-			return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+		if currentValue != conf.nv {
+			if !conf.sv(conf.nv) {
+				log.Logger.Warn(fmt.Sprintf("Failed to update KFPatcher %s configuration", conf.name),
+					"function", "updateKFPatcherConfigFile", "file", kfpiFilePath, "confName", conf.name, "confOldValue", currentValue, "confNewValue", conf.nv)
+				return fmt.Errorf("[%s]: failed to set the new value: %v", conf.name, conf.nv)
+			}
+			log.Logger.Debug(fmt.Sprintf("Updated KFPatcher %s configuration", conf.name),
+				"function", "updateKFPatcherConfigFile", "file", kfpiFilePath, "confName", conf.name, "confOldValue", currentValue, "confNewValue", conf.nv)
 		}
 	}
-	return kfpi.Save(kfpiFilePath)
+
+	// Save the ini file
+	err = kfpi.Save(kfpiFilePath)
+	if err == nil {
+		log.Logger.Debug("KFPatcher configuration file successfully saved",
+			"function", "updateKFPatcherConfigFile", "file", kfpiFilePath)
+	} else {
+		log.Logger.Error("Failed to save the KFPatcher configuration file",
+			"function", "updateKFPatcherConfigFile", "file", kfpiFilePath, "error", err)
+	}
+	return err
 }
 
 func updateGameServerSteamLibs() ([]string, error) {
@@ -357,6 +501,9 @@ func updateGameServerSteamLibs() ([]string, error) {
 	rootDir := viper.GetString("steamcmd-appinstalldir")
 	systemDir := path.Join(rootDir, "System")
 	libsDir := path.Join(viper.GetString("steamcmd-root"), "linux32")
+
+	log.Logger.Debug("Updating server Steam libraries",
+		"function", "updateGameServerSteamLibs", "rootDir", rootDir, "systemDir", systemDir, "libsDir", libsDir)
 
 	libs := map[string]string{
 		path.Join(libsDir, "steamclient.so"):  path.Join(systemDir, "steamclient.so"),
@@ -367,16 +514,28 @@ func updateGameServerSteamLibs() ([]string, error) {
 	for srcFile, dstFile := range libs {
 		identical, err := utils.SHA1Compare(srcFile, dstFile)
 		if err != nil {
-			return ret, fmt.Errorf("error comparing files %s and %s: %v", srcFile, dstFile, err)
+			log.Logger.Warn("Error comparing file checksums",
+				"function", "updateGameServerSteamLibs", "sourceFile", srcFile, "destFile", dstFile, "error", err)
+			return ret, fmt.Errorf("error comparing files %s and %s: %w", srcFile, dstFile, err)
 		}
 
 		if !identical {
+			log.Logger.Debug("Files differ, updating destination file",
+				"function", "updateGameServerSteamLibs", "sourceFile", srcFile, "destFile", dstFile)
 			if err := utils.CopyAndReplaceFile(srcFile, dstFile); err != nil {
 				return ret, err
 			}
+			log.Logger.Debug("Successfully updated game server library",
+				"function", "updateGameServerSteamLibs", "sourceFile", srcFile, "destFile", dstFile)
 			ret = append(ret, dstFile)
+		} else {
+			log.Logger.Debug("Files are already identical, skipping update",
+				"function", "updateGameServerSteamLibs", "sourceFile", srcFile, "destFile", dstFile)
 		}
 	}
+
+	log.Logger.Debug("Server Steam libraries update complete",
+		"function", "updateGameServerSteamLibs", "updatedFilesCount", len(ret))
 	return ret, nil
 }
 
@@ -390,26 +549,39 @@ func readSteamCredentials(sett *settings.KFDSLSettings) error {
 		}
 	}()
 
+	log.Logger.Debug("Starting Steam credential retrieval",
+		"function", "readSteamCredentials")
+
 	// Try reading from Docker Secrets
+	log.Logger.Debug("Attempting to read from Docker Secrets",
+		"function", "readSteamCredentials")
 	steamUsername, errUser := secrets.Read("steamacc_username")
 	steamPassword, errPass := secrets.Read("steamacc_password")
 
 	// Fallback to environment variables if secrets are missing
 	if errUser != nil {
+		log.Logger.Debug("Secret not found, falling back to environment variable",
+			"function", "readSteamCredentials", "secret", "steamacc_username", "error", errUser)
 		steamUsername = viper.GetString("STEAMACC_USERNAME")
 		fromEnv = true
 	}
 	if errPass != nil {
+		log.Logger.Debug("Secret not found, falling back to environment variable",
+			"function", "readSteamCredentials", "secret", "steamacc_password", "error", errPass)
 		steamPassword = viper.GetString("STEAMACC_PASSWORD")
 		fromEnv = true
 	}
 
 	// Ensure both credentials are present
 	if steamUsername == "" || steamPassword == "" {
+		log.Logger.Debug("Missing Steam credentials, aborting",
+			"function", "readSteamCredentials", "steamUsernameEmpty", steamUsername == "", "steamPasswordEmpty", steamPassword == "")
 		return fmt.Errorf("incomplete credentials: Steam username and password are required")
 	}
 
 	// Update the settings
+	log.Logger.Debug("Successfully retrieved credentials, updating settings",
+		"function", "readSteamCredentials")
 	sett.SteamLogin = steamUsername
 	sett.SteamPassword = steamPassword
 	return nil

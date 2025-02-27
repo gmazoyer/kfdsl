@@ -49,11 +49,11 @@ func (kf *KFIniFile) GetGameDifficulty() int {
 }
 
 func (kf *KFIniFile) GetGameLength() int {
-	return kf.GetKeyInt("KFMod.KFGameType", "KFGameLength", settings.DefaultInternalGameLength)
+	return kf.GetKeyInt("KFmod.KFGameType", "KFGameLength", settings.DefaultInternalGameLength)
 }
 
 func (kf *KFIniFile) GetFriendlyFireRate() float64 {
-	return kf.GetKeyFloat("KFMod.KFGameType", "FriendlyFireScale", settings.DefaultFriendlyFire)
+	return kf.GetKeyFloat("KFmod.KFGameType", "FriendlyFireScale", settings.DefaultFriendlyFire)
 }
 
 func (kf *KFIniFile) GetMaxPlayers() int {
@@ -89,7 +89,7 @@ func (kf *KFIniFile) GetMOTD() string {
 }
 
 func (kf *KFIniFile) GetSpecimenType() string {
-	return kf.GetKey("KFMod.KFGameType", "SpecialEventType", settings.DefaultInternalSpecimenType)
+	return kf.GetKey("KFmod.KFGameType", "SpecialEventType", settings.DefaultInternalSpecimenType)
 }
 
 func (kf *KFIniFile) GetRedirectURL() string {
@@ -159,11 +159,11 @@ func (kf *KFIniFile) SetGameDifficulty(difficulty int) bool {
 }
 
 func (kf *KFIniFile) SetGameLength(length int) bool {
-	return kf.SetKeyInt("KFMod.KFGameType", "KFGameLength", length, true)
+	return kf.SetKeyInt("KFmod.KFGameType", "KFGameLength", length, true)
 }
 
 func (kf *KFIniFile) SetFriendlyFireRate(rate float64) bool {
-	return kf.SetKeyFloat("KFMod.KFGameType", "FriendlyFireScale", rate, true)
+	return kf.SetKeyFloat("KFmod.KFGameType", "FriendlyFireScale", rate, true)
 }
 
 func (kf *KFIniFile) SetMaxPlayers(players int) bool {
@@ -199,7 +199,7 @@ func (kf *KFIniFile) SetMOTD(motd string) bool {
 }
 
 func (kf *KFIniFile) SetSpecimenType(specimentype string) bool {
-	return kf.SetKey("KFMod.KFGameType", "SpecialEventType", specimentype, true)
+	return kf.SetKey("KFmod.KFGameType", "SpecialEventType", specimentype, true)
 }
 
 func (kf *KFIniFile) SetRedirectURL(url string) bool {

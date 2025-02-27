@@ -10,6 +10,8 @@ import (
 func GetInstalledMaps(dir string, prefix string) ([]string, error) {
 	var filteredFiles []string
 
+	prefix = strings.ToLower(prefix)
+
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -21,15 +23,14 @@ func GetInstalledMaps(dir string, prefix string) ([]string, error) {
 		}
 
 		fileName := file.Name()
-		if strings.HasPrefix(strings.ToLower(fileName), "kf-menu") || !strings.HasPrefix(fileName, prefix) {
+		if strings.HasPrefix(strings.ToLower(fileName), "kf-menu") || !strings.HasPrefix(strings.ToLower(fileName), prefix) {
 			continue
 		}
 
-		ext := filepath.Ext(fileName)
-		if ext != ".rom" {
+		if filepath.Ext(fileName) != ".rom" {
 			continue
 		}
-		filteredFiles = append(filteredFiles, strings.TrimSuffix(fileName, ext))
+		filteredFiles = append(filteredFiles, strings.TrimSuffix(fileName, ".rom"))
 	}
 	return filteredFiles, nil
 }
@@ -45,7 +46,7 @@ func GetGameModeMapPrefix(gamemode string) string {
 
 func GetGameModeMaplistName(gamemode string) string {
 	mlist := map[string]string{
-		"survival":  "KFMod.KFMaplist",
+		"survival":  "KFmod.KFMaplist",
 		"objective": "KFStoryGame.KFOMapList",
 		"toymaster": "KFCharPuppets.TOYMapList",
 	}
