@@ -185,18 +185,30 @@ func extractDefaultConfigFile(filename string, filePath string) error {
 func updateConfigFile(sett *settings.KFDSLSettings) error {
 	kfiFileName := sett.ConfigFile.Value()
 	kfiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", kfiFileName)
+	tmEnabled := strings.Contains(strings.ToLower(sett.GameMode.Value()), "toygameinfo")
 
-	log.Logger.Debug("Updating server configuration file",
+	log.Logger.Debug("Starting server configuration file update",
 		"function", "updateConfigFile", "file", kfiFilePath)
 
-	// Extract the default KillingFloor.ini if it doesn't exists
-	if !utils.FileExists(kfiFilePath) {
-		log.Logger.Debug("Missing server configuration file. Extracting the default one...",
+	if tmEnabled && !strings.EqualFold(strings.ToLower(kfiFileName), "toygame.ini") {
+		log.Logger.Warn("Toy Master game mode is enabled, but the configuration file is not 'ToyGame.ini'. This may cause unexpected behavior",
 			"function", "updateConfigFile", "file", kfiFilePath)
+	}
 
-		if err := extractDefaultConfigFile(kfiFileName, kfiFilePath); err != nil {
+	// If the specified configuration file doesn't exists,
+	// let's extract the corresponding default file
+	if !utils.FileExists(kfiFilePath) {
+		defaultIniFileName := "KillingFloor.ini"
+		if tmEnabled {
+			defaultIniFileName = "ToyGame.ini"
+		}
+
+		log.Logger.Debug("Missing server configuration file. Extracting the default one...",
+			"function", "updateConfigFile", "file", kfiFilePath, "defaultFileName", defaultIniFileName)
+
+		if err := extractDefaultConfigFile(defaultIniFileName, kfiFilePath); err != nil {
 			log.Logger.Warn("Failed to extract the default server configuration file",
-				"function", "updateConfigFile", "file", kfiFilePath, "error", err)
+				"function", "updateConfigFile", "file", kfiFilePath, "defaultFileName", defaultIniFileName, "error", err)
 			return err
 		}
 		log.Logger.Debug("Default server configuration file successfully extracted",
@@ -204,7 +216,15 @@ func updateConfigFile(sett *settings.KFDSLSettings) error {
 	}
 
 	// Read the ini file
-	kfi, err := config.NewKFIniFile(kfiFilePath)
+	var kfi config.ServerIniFile
+	var err error
+
+	// Toy Master support
+	if tmEnabled {
+		kfi, err = config.NewKFTGIniFile(kfiFilePath)
+	} else {
+		kfi, err = config.NewKFIniFile(kfiFilePath)
+	}
 	if err != nil {
 		log.Logger.Warn("Failed to read the server configuration file",
 			"function", "updateConfigFile", "file", kfiFilePath, "error", err)
@@ -283,17 +303,17 @@ func updateConfigFile(sett *settings.KFDSLSettings) error {
 	return err
 }
 
-func updateConfigFileServerMutators(iniFile *config.KFIniFile, sett *settings.KFDSLSettings) error {
+func updateConfigFileServerMutators(iniFile config.ServerIniFile, sett *settings.KFDSLSettings) error {
 	mutatorsStr := sett.ServerMutators.Value()
 	mutatorsList := strings.FieldsFunc(mutatorsStr, func(r rune) bool { return r == ',' })
 
-	log.Logger.Debug("Updating configuration file server mutators",
-		"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList)
+	log.Logger.Debug("Starting server configuration file mutators update",
+		"function", "updateConfigFileServerMutators", "file", iniFile.FilePath(), "mutators", mutatorsList)
 
 	// If KFPatcher is enabled, add its mutator to the list if not already present
 	if sett.EnableKFPatcher.Value() && !strings.Contains(strings.ToLower(mutatorsStr), "kfpatcher") {
 		log.Logger.Debug("KFPatcher is enabled, adding its mutator to the server mutator list",
-			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutator", "KFPatcher.Mut")
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath(), "mutator", "KFPatcher.Mut")
 		mutatorsList = append(mutatorsList, "KFPatcher.Mut")
 	}
 
@@ -301,40 +321,40 @@ func updateConfigFileServerMutators(iniFile *config.KFIniFile, sett *settings.KF
 	if len(mutatorsList) > 0 {
 		if err := iniFile.SetServerMutators(mutatorsList); err != nil {
 			log.Logger.Warn("Failed to set server mutators",
-				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList, "error", err)
+				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath(), "mutators", mutatorsList, "error", err)
 			return err
 		}
 		log.Logger.Debug("Server mutators successfully updated",
-			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "mutators", mutatorsList)
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath(), "mutators", mutatorsList)
 	} else {
 		if err := iniFile.ClearServerMutators(); err != nil {
 			log.Logger.Warn("Failed to clear existing server mutators",
-				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath, "error", err)
+				"function", "updateConfigFileServerMutators", "file", iniFile.FilePath(), "error", err)
 			return err
 		}
 		log.Logger.Debug("Server mutators cleared",
-			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath)
+			"function", "updateConfigFileServerMutators", "file", iniFile.FilePath())
 	}
 	return nil
 }
 
-func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSettings) error {
+func updateConfigFileMaplist(iniFile config.ServerIniFile, sett *settings.KFDSLSettings) error {
 	gameMode := sett.GameMode.RawValue()
 
-	log.Logger.Debug("Updating configuration file maplist",
-		"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
+	log.Logger.Debug("Starting server configuration file maplist update",
+		"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "gameMode", gameMode)
 
 	sectionName := kfserver.GetGameModeMaplistName(gameMode)
 	if sectionName == "" {
 		log.Logger.Warn("Undefined maplist section name",
-			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "gameMode", gameMode)
 		return fmt.Errorf("undefined section name for game mode: %s", gameMode)
 	}
 
 	mapList := strings.FieldsFunc(sett.Maplist.Value(), func(r rune) bool { return r == ',' })
 
 	log.Logger.Debug("Maplist parsed",
-		"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName,
+		"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName,
 		"gameMode", gameMode, "list", mapList)
 
 	if len(mapList) > 0 {
@@ -346,12 +366,12 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 			installedMaps, err := kfserver.GetInstalledMaps(path.Join(gameServerRoot, "Maps"), gameModePrefix)
 			if err != nil {
 				log.Logger.Warn("Unable to fetch installed maps",
-					"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "gameMode", gameMode)
+					"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "gameMode", gameMode)
 				return fmt.Errorf("unable to fetch available maps for game mode '%s': %w", gameMode, err)
 			}
 
 			log.Logger.Debug("Using all maps for the current game mode",
-				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName,
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName,
 				"gameMode", gameMode, "gameModePrefix", gameModePrefix, "serverRootDir", gameServerRoot, "installedMaps", installedMaps)
 
 			mapList = installedMaps
@@ -360,20 +380,20 @@ func updateConfigFileMaplist(iniFile *config.KFIniFile, sett *settings.KFDSLSett
 		// Set the map list in the configuration file
 		if err := iniFile.SetMaplist(sectionName, mapList); err != nil {
 			log.Logger.Warn("Failed to set maplist",
-				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName, "error", err)
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName, "error", err)
 			return err
 		}
 		log.Logger.Debug("Maplist successfully updated",
-			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName)
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName)
 	} else {
 		// Clear the maplist
 		if err := iniFile.ClearMaplist(sectionName); err != nil {
 			log.Logger.Warn("Failed to clear maplist",
-				"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName, "error", err)
+				"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName, "error", err)
 			return err
 		}
 		log.Logger.Debug("Maplist cleared",
-			"function", "updateConfigFileMaplist", "file", iniFile.FilePath, "section", sectionName)
+			"function", "updateConfigFileMaplist", "file", iniFile.FilePath(), "section", sectionName)
 	}
 	return nil
 }
@@ -451,7 +471,7 @@ func setupKFPatcher(sett *settings.KFDSLSettings) error {
 func updateKFPatcherConfigFile(sett *settings.KFDSLSettings) error {
 	kfpiFilePath := filepath.Join(viper.GetString("steamcmd-appinstalldir"), "System", "KFPatcherSettings.ini")
 
-	log.Logger.Debug("Updating KFPatcher configuration file",
+	log.Logger.Debug("Starting KFPatcher configuration file update",
 		"function", "updateKFPatcherConfigFile", "file", kfpiFilePath)
 
 	// Read the ini file
@@ -503,7 +523,7 @@ func updateGameServerSteamLibs() ([]string, error) {
 	systemDir := path.Join(rootDir, "System")
 	libsDir := path.Join(viper.GetString("steamcmd-root"), "linux32")
 
-	log.Logger.Debug("Updating server Steam libraries",
+	log.Logger.Debug("Starting server Steam libraries update",
 		"function", "updateGameServerSteamLibs", "rootDir", rootDir, "systemDir", systemDir, "libsDir", libsDir)
 
 	libs := map[string]string{

@@ -48,7 +48,7 @@ func main() {
 	if !sett.NoSteam.Value() {
 		start := time.Now()
 		if err := startSteamCMD(sett, ctx); err != nil {
-			log.Logger.Error("SteamCMD raised an error", "err", err)
+			log.Logger.Error("SteamCMD raised an error", "error", err)
 			os.Exit(1)
 		}
 		log.Logger.Debug("SteamCMD process completed",
@@ -66,9 +66,10 @@ func main() {
 		cancel()
 
 		if server != nil && server.IsRunning() {
-			log.Logger.Debug("Waiting for the KF Dedicated Server to stop...", "function", "main")
+			log.Logger.Debug("Waiting for the KF Dedicated Server to stop...",
+				"function", "main")
 			if err := server.Wait(); err != nil {
-				log.Logger.Error("KF Dedicated Server raised an error during shutdown", "err", err)
+				log.Logger.Error("KF Dedicated Server raised an error during shutdown", "error", err)
 			}
 		}
 		log.Logger.Info("KF Dedicated Server has been stopped.")
@@ -80,7 +81,7 @@ func main() {
 	startTime = time.Now()
 	server, err := startGameServer(sett, ctx)
 	if err != nil {
-		log.Logger.Error("KF Dedicated Server raised an error", "err", err)
+		log.Logger.Error("KF Dedicated Server raised an error", "error", err)
 		return
 	}
 

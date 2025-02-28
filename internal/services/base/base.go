@@ -36,13 +36,13 @@ type BaseService struct {
 }
 
 func NewBaseService(name string, rootDir string, ctx context.Context) *BaseService {
-	sb := &BaseService{
+	bs := &BaseService{
 		name:    name,
 		rootDir: rootDir,
 		logger:  log.Logger.WithService(name),
 	}
-	sb.ctx, sb.cancel = context.WithCancel(ctx)
-	return sb
+	bs.ctx, bs.cancel = context.WithCancel(ctx)
+	return bs
 }
 
 func (bs *BaseService) Name() string {
@@ -152,7 +152,7 @@ func (bs *BaseService) Stop() error {
 	if bs.ptmx != nil {
 		bs.logger.Info("Attempting to send SIGINT...")
 		if _, err := bs.ptmx.Write([]byte{3}); err != nil {
-			bs.logger.Error("Failed to send SIGINT to pty", "err", err)
+			bs.logger.Error("Failed to send SIGINT to pty", "error", err)
 		}
 	}
 
@@ -163,7 +163,7 @@ func (bs *BaseService) Stop() error {
 	if bs.cmd.ProcessState == nil || !bs.cmd.ProcessState.Exited() {
 		bs.logger.Warn("Process did not exit after SIGINT, attempting SIGTERM...")
 		if err := bs.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-			bs.logger.Error("Failed to send SIGTERM, attempting to kill the process...", "err", err)
+			bs.logger.Error("Failed to send SIGTERM, attempting to kill the process...", "error", err)
 
 			// If SIGTERM fails, use SIGKILL
 			if err := bs.cmd.Process.Kill(); err != nil {
@@ -239,7 +239,7 @@ func (bs *BaseService) monitorCancellation() {
 
 		bs.logger.Info("Shutting down...")
 		if _, err := bs.ptmx.Write([]byte{3}); err != nil {
-			bs.logger.Error("Failed to send SIGINT to pty", "err", err)
+			bs.logger.Error("Failed to send SIGINT to pty", "error", err)
 		}
 		bs.execErr = fmt.Errorf("process cancelled")
 	}

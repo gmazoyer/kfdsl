@@ -1,12 +1,27 @@
 package ini
 
 type IniSection struct {
-	Name string
-	Keys []*IniKey // Slice to maintain order and support duplicates
+	name string
+	keys []*IniKey // Slice to maintain order and support duplicates
+}
+
+func NewIniSection(name string) *IniSection {
+	return &IniSection{
+		name: name,
+		keys: []*IniKey{},
+	}
+}
+
+func (s *IniSection) Name() string {
+	return s.name
+}
+
+func (s *IniSection) Keys() []*IniKey {
+	return s.keys
 }
 
 func (s *IniSection) GetKey(name string) (string, bool) {
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name == name {
 			return key.Value, true
 		}
@@ -16,7 +31,7 @@ func (s *IniSection) GetKey(name string) (string, bool) {
 
 func (s *IniSection) GetKeys(name string) []string {
 	var values []string
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name == name {
 			values = append(values, key.Value)
 		}
@@ -25,12 +40,12 @@ func (s *IniSection) GetKeys(name string) []string {
 }
 
 func (s *IniSection) AddKey(name, value string) {
-	s.Keys = append(s.Keys, &IniKey{Name: name, Value: value})
+	s.keys = append(s.keys, &IniKey{Name: name, Value: value})
 	s.recalculateIndices()
 }
 
 func (s *IniSection) AddUniqueKey(name, value string) {
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name == name && key.Value == value {
 			return
 		}
@@ -40,18 +55,18 @@ func (s *IniSection) AddUniqueKey(name, value string) {
 
 func (s *IniSection) DeleteKey(name string) {
 	newKeys := []*IniKey{}
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name != name {
 			newKeys = append(newKeys, key)
 		}
 	}
-	s.Keys = newKeys
+	s.keys = newKeys
 	s.recalculateIndices()
 }
 
 func (s *IniSection) DeleteUniqueKey(name string, targetValue *string, targetIndex *int) {
 	newKeys := []*IniKey{}
-	for i, key := range s.Keys {
+	for i, key := range s.keys {
 		if key.Name == name {
 			if targetValue != nil && key.Value == *targetValue {
 				continue
@@ -62,7 +77,7 @@ func (s *IniSection) DeleteUniqueKey(name string, targetValue *string, targetInd
 		}
 		newKeys = append(newKeys, key)
 	}
-	s.Keys = newKeys
+	s.keys = newKeys
 	s.recalculateIndices()
 }
 
@@ -71,24 +86,23 @@ func (s *IniSection) SetKey(name, value string) {
 }
 
 func (s *IniSection) SetUniqueKey(name, value string) {
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name == name && key.Value == value {
 			return
 		}
 	}
 
-	for _, key := range s.Keys {
+	for _, key := range s.keys {
 		if key.Name == name {
 			key.Value = value
 			return
 		}
 	}
-	// If the key doesn't exist at all, add it
 	s.AddKey(name, value)
 }
 
 func (s *IniSection) recalculateIndices() {
-	for i, key := range s.Keys {
+	for i, key := range s.keys {
 		key.Index = i
 	}
 }

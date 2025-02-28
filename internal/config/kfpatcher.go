@@ -11,14 +11,14 @@ type KFPIniFile struct {
 }
 
 func NewKFPIniFile(filePath string) (*KFPIniFile, error) {
-	KFPIniFile := &KFPIniFile{
-		GenericIniFile: ini.NewGenericIniFile(),
+	kfpIniFile := &KFPIniFile{
+		GenericIniFile: ini.NewGenericIniFile("KFPIniFile"),
 		FilePath:       filePath,
 	}
-	if err := KFPIniFile.Load(filePath); err != nil {
+	if err := kfpIniFile.Load(filePath); err != nil {
 		return nil, err
 	}
-	return KFPIniFile, nil
+	return kfpIniFile, nil
 }
 
 // sAlive
@@ -58,8 +58,6 @@ func (kf *KFPIniFile) GetAllTradersMessage() string {
 func (kf *KFPIniFile) IsBuyEverywhereEnabled() bool {
 	return kf.GetKeyBool("KFPatcher.Settings", "bBuyEverywhere", settings.DefaultKFPBuyEverywhere)
 }
-
-// -----------------------
 
 func (kf *KFPIniFile) SetShowPerksEnabled(enabled bool) bool {
 	return kf.SetKeyBool("KFPatcher.Settings", "bShowPerk", enabled, true)

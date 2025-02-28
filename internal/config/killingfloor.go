@@ -10,18 +10,22 @@ import (
 
 type KFIniFile struct {
 	*ini.GenericIniFile
-	FilePath string
+	filePath string
 }
 
-func NewKFIniFile(filePath string) (*KFIniFile, error) {
-	kfIniFile := &KFIniFile{
-		GenericIniFile: ini.NewGenericIniFile(),
-		FilePath:       filePath,
+func NewKFIniFile(filePath string) (ServerIniFile, error) {
+	iFile := &KFIniFile{
+		GenericIniFile: ini.NewGenericIniFile("KFIniFile"),
+		filePath:       filePath,
 	}
-	if err := kfIniFile.Load(filePath); err != nil {
+	if err := iFile.Load(filePath); err != nil {
 		return nil, err
 	}
-	return kfIniFile, nil
+	return iFile, nil
+}
+
+func (kf *KFIniFile) FilePath() string {
+	return kf.filePath
 }
 
 func (kf *KFIniFile) GetServerName() string {
@@ -131,8 +135,6 @@ func (kf *KFIniFile) IsLowGoreEnabled() bool {
 func (kf *KFIniFile) GetMaxInternetClientRate() int {
 	return kf.GetKeyInt("IpDrv.TcpNetDriver", "MaxInternetClientRate", settings.DefaultMaxInternetClientRate)
 }
-
-// -----------------------
 
 func (kf *KFIniFile) SetServerName(servername string) bool {
 	return kf.SetKey("Engine.GameReplicationInfo", "ServerName", servername, true)
@@ -264,8 +266,6 @@ func (kf *KFIniFile) SetLowGoreEnabled(enabled bool) bool {
 func (kf *KFIniFile) SetMaxInternetClientRate(rate int) bool {
 	return kf.SetKeyInt("IpDrv.TcpNetDriver", "MaxInternetClientRate", rate, true)
 }
-
-// ----------------------
 
 func (kf *KFIniFile) ServerMutatorExists(mutator string) bool {
 	section, key := "Engine.GameEngine", "ServerActors"
