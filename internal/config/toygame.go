@@ -9,7 +9,6 @@ import (
 
 type KFTGIniFile struct {
 	*KFIniFile
-	gameMode string
 }
 
 func NewKFTGIniFile(filePath string) (ServerIniFile, error) {
@@ -17,25 +16,13 @@ func NewKFTGIniFile(filePath string) (ServerIniFile, error) {
 		KFIniFile: &KFIniFile{
 			GenericIniFile: ini.NewGenericIniFile("KFTGIniFile"),
 			filePath:       filePath,
+			gameMode:       "KFCharPuppets.TOYGameInfo",
 		},
-		gameMode: "KFCharPuppets.TOYGameInfo",
 	}
 	if err := iFile.Load(filePath); err != nil {
 		return nil, err
 	}
 	return iFile, nil
-}
-
-func (kf *KFTGIniFile) GetGameLength() int {
-	return kf.GetKeyInt(kf.gameMode, "KFGameLength", settings.DefaultInternalGameLength)
-}
-
-func (kf *KFTGIniFile) GetFriendlyFireRate() float64 {
-	return kf.GetKeyFloat(kf.gameMode, "FriendlyFireScale", settings.DefaultFriendlyFire)
-}
-
-func (kf *KFTGIniFile) GetSpecimenType() string {
-	return settings.DefaultSpecimenType
 }
 
 func (kf *KFTGIniFile) SetGameLength(length int) bool {
@@ -48,17 +35,12 @@ func (kf *KFTGIniFile) SetGameLength(length int) bool {
 	if kf.GetGameLength() != 0 {
 		kf.Logger.Warn("Invalid game length detected in ini file. Resetting to 0",
 			"function", "SetGameLength")
-		return kf.SetKeyInt(kf.gameMode, "KFGameLength", 0, true)
+		return kf.SetKeyInt(kf.gameMode, kfKeyGameLength, 0, true)
 	}
 	return true
 }
 
-func (kf *KFTGIniFile) SetFriendlyFireRate(rate float64) bool {
-	return kf.SetKeyFloat(kf.gameMode, "FriendlyFireScale", rate, true)
-}
-
 func (kf *KFTGIniFile) SetMaxPlayers(players int) bool {
-	// 6 is the maximum supported
 	if players != 6 {
 		kf.Logger.Warn("Invalid max players. Toy Master supports a maximum of 6 players. Ignoring value",
 			"function", "SetMaxPlayers", "maxPlayers", players)
@@ -86,10 +68,9 @@ func (kf *KFTGIniFile) SetMapVoteEnabled(enabled bool) error {
 			"function", "SetMapVoteEnabled", "enabled", enabled)
 	}
 
-	// Remove map list loader
-	vhSection := "xVoting.xVotingHandler"
-	if kf.HasKey(vhSection, "MapListLoaderType") && !kf.DeleteKey(vhSection, "MapListLoaderType") {
-		return fmt.Errorf("unable to delete [%s].MapListLoaderType", vhSection)
+	// Remove map list loader, if present
+	if kf.HasKey(kfSectionVotingHandler, kfKeyMapListLoaderType) && !kf.DeleteKey(kfSectionVotingHandler, kfKeyMapListLoaderType) {
+		return fmt.Errorf("unable to delete [%s].%s", kfSectionVotingHandler, kfKeyMapListLoaderType)
 	}
 	return nil
 }

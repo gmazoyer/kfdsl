@@ -183,8 +183,19 @@ func (f *GenericIniFile) DeleteUniqueKey(section string, key string, targetValue
 		keyCountAfter := len(sect.GetKeys(key))
 
 		if keyCountAfter == (keyCountBefore - 1) {
+			fields := []any{
+				"function", "DeleteUniqueKey",
+				"section", section,
+				"key", key,
+			}
+			if targetValue != nil {
+				fields = append(fields, "value", *targetValue)
+			}
+			if targetIndex != nil {
+				fields = append(fields, "index", *targetIndex)
+			}
 			f.Logger.Debug("Deleting unique key",
-				"function", "DeleteUniqueKey", "section", section, "key")
+				fields...)
 			return true
 		}
 	}

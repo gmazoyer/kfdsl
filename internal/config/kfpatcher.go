@@ -7,13 +7,25 @@ import (
 
 type KFPIniFile struct {
 	*ini.GenericIniFile
-	FilePath string
+	filePath string
 }
+
+const (
+	// Sections
+	kfpRootSection = "KFPatcher.Settings"
+
+	// Keys
+	kfpKeyShowPerk          = "bShowPerk"
+	kfpKeyAllowZedTime      = "bAllowZedTime"
+	kfpKeyAllTradersOpen    = "bAllTradersOpen"
+	kfpKeyAllTradersMessage = "bAllTradersMessage"
+	kfpKeyBuyEverywhere     = "bBuyEverywhere"
+)
 
 func NewKFPIniFile(filePath string) (*KFPIniFile, error) {
 	kfpIniFile := &KFPIniFile{
 		GenericIniFile: ini.NewGenericIniFile("KFPIniFile"),
-		FilePath:       filePath,
+		filePath:       filePath,
 	}
 	if err := kfpIniFile.Load(filePath); err != nil {
 		return nil, err
@@ -40,41 +52,41 @@ func NewKFPIniFile(filePath string) (*KFPIniFile, error) {
 // fRefreshTime
 
 func (kf *KFPIniFile) IsShowPerksEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bShowPerk", !settings.DefaultKFPHidePerks)
+	return kf.GetKeyBool(kfpRootSection, kfpKeyShowPerk, !settings.DefaultKFPHidePerks)
 }
 
 func (kf *KFPIniFile) IsZEDTimeEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bAllowZedTime", !settings.DefaultKFPDisableZedTime)
+	return kf.GetKeyBool(kfpRootSection, kfpKeyAllowZedTime, !settings.DefaultKFPDisableZedTime)
 }
 
 func (kf *KFPIniFile) IsAllTradersOpenEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bAllTradersOpen", settings.DefaultKFPEnableAllTraders)
+	return kf.GetKeyBool(kfpRootSection, kfpKeyAllTradersOpen, settings.DefaultKFPEnableAllTraders)
 }
 
 func (kf *KFPIniFile) GetAllTradersMessage() string {
-	return kf.GetKey("KFPatcher.Settings", "bAllTradersMessage", settings.DefaultKFPAllTradersMessage)
+	return kf.GetKey(kfpRootSection, kfpKeyAllTradersMessage, settings.DefaultKFPAllTradersMessage)
 }
 
 func (kf *KFPIniFile) IsBuyEverywhereEnabled() bool {
-	return kf.GetKeyBool("KFPatcher.Settings", "bBuyEverywhere", settings.DefaultKFPBuyEverywhere)
+	return kf.GetKeyBool(kfpRootSection, kfpKeyBuyEverywhere, settings.DefaultKFPBuyEverywhere)
 }
 
 func (kf *KFPIniFile) SetShowPerksEnabled(enabled bool) bool {
-	return kf.SetKeyBool("KFPatcher.Settings", "bShowPerk", enabled, true)
+	return kf.SetKeyBool(kfpRootSection, kfpKeyShowPerk, enabled, true)
 }
 
 func (kf *KFPIniFile) SetZEDTimeEnabled(enabled bool) bool {
-	return kf.SetKeyBool("KFPatcher.Settings", "bAllowZedTime", enabled, true)
+	return kf.SetKeyBool(kfpRootSection, kfpKeyAllowZedTime, enabled, true)
 }
 
 func (kf *KFPIniFile) SetAllTradersOpenEnabled(enabled bool) bool {
-	return kf.SetKeyBool("KFPatcher.Settings", "bAllTradersOpen", enabled, true)
+	return kf.SetKeyBool(kfpRootSection, kfpKeyAllTradersOpen, enabled, true)
 }
 
 func (kf *KFPIniFile) SetAllTradersMessage(message string) bool {
-	return kf.SetKey("KFPatcher.Settings", "bAllTradersMessage", message, true)
+	return kf.SetKey(kfpRootSection, kfpKeyAllTradersMessage, message, true)
 }
 
 func (kf *KFPIniFile) SetBuyEverywhereEnabled(enabled bool) bool {
-	return kf.SetKeyBool("KFPatcher.Settings", "bBuyEverywhere", false, true)
+	return kf.SetKeyBool(kfpRootSection, kfpKeyBuyEverywhere, enabled, true)
 }

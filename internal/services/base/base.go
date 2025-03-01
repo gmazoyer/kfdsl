@@ -196,7 +196,7 @@ func (bs *BaseService) IsRunning() bool {
 	return bs.cmd != nil && bs.cmd.Process != nil && bs.cmd.ProcessState == nil
 }
 
-// IsAvailable returns wheter the service is available.
+// IsAvailable returns whether the service is available.
 func (bs *BaseService) IsAvailable() bool {
 	return false
 }
