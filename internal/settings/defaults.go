@@ -1,8 +1,8 @@
 package settings
 
 const (
-	DefaultDependencyFile       = "dependencies.json"
 	DefaultConfigFile           = "KillingFloor.ini"
+	DefaultModsFile             = "mods.json"
 	DefaultServerName           = "Killing Floor Server"
 	DefaultShortName            = "KF Server"
 	DefaultGamePort             = 7707

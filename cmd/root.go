@@ -22,7 +22,7 @@ func BuildRootCommand() *cobra.Command {
 
 	var userHome, _ = os.UserHomeDir()
 
-	var dependencyFile, configFile, serverName, shortName, gameMode, startupMap, gameDifficulty,
+	var configFile, modsFile, serverName, shortName, gameMode, startupMap, gameDifficulty,
 		gameLength, password, adminName, adminMail, adminPassword, motd, specimenType, mutators,
 		serverMutators, redirectURL, mapList, allTradersMessage, logLevel, logFilePath,
 		logFileFormat, steamRootDir, steamAppInstallDir string
@@ -42,7 +42,7 @@ func BuildRootCommand() *cobra.Command {
 		Desc    string
 		Default interface{}
 	}{
-		"dependencies":           {&dependencyFile, "dependency file", settings.DefaultDependencyFile},
+		"mods":                   {&modsFile, "mods file", settings.DefaultModsFile},
 		"config":                 {&configFile, "configuration file", settings.DefaultConfigFile},
 		"servername":             {&serverName, "server name", settings.DefaultServerName},
 		"shortname":              {&shortName, "server short name", settings.DefaultShortName},
@@ -152,8 +152,8 @@ func runRootCommand(cmd *cobra.Command, args []string) error {
 }
 
 func registerArguments(sett *settings.KFDSLSettings) {
-	sett.DependencyFile = arguments.NewArgument("Dependency File", viper.GetString("dependencies"), nil, nil, false)
 	sett.ConfigFile = arguments.NewArgument("Config File", viper.GetString("config"), nil, nil, false)
+	sett.ModsFile = arguments.NewArgument("Mods File", viper.GetString("mods"), nil, nil, false)
 	sett.ServerName = arguments.NewArgument("Server Name", viper.GetString("servername"), arguments.ParseNonEmptyStr, nil, false)
 	sett.ShortName = arguments.NewArgument("Short Name", viper.GetString("shortname"), arguments.ParseNonEmptyStr, nil, false)
 	sett.GamePort = arguments.NewArgument("Game Port", viper.GetInt("port"), arguments.ParsePort, nil, false)

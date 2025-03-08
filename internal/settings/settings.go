@@ -9,8 +9,8 @@ import (
 )
 
 type KFDSLSettings struct {
-	DependencyFile       *arguments.Argument[string]  // File defining which dependencies to install
 	ConfigFile           *arguments.Argument[string]  // Server Configuration File
+	ModsFile             *arguments.Argument[string]  // File defining which mods to install
 	ServerName           *arguments.Argument[string]  // Server Name
 	ShortName            *arguments.Argument[string]  // Server Alias
 	GamePort             *arguments.Argument[int]     // Port
