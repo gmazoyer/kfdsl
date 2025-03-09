@@ -15,6 +15,7 @@ import (
 	"github.com/K4rian/kfdsl/internal/config"
 	"github.com/K4rian/kfdsl/internal/config/secrets"
 	"github.com/K4rian/kfdsl/internal/log"
+	"github.com/K4rian/kfdsl/internal/mods"
 	"github.com/K4rian/kfdsl/internal/services/kfserver"
 	"github.com/K4rian/kfdsl/internal/services/steamcmd"
 	"github.com/K4rian/kfdsl/internal/settings"
@@ -132,6 +133,11 @@ func startGameServer(sett *settings.KFDSLSettings, ctx context.Context) (*kfserv
 		return nil, fmt.Errorf("failed to update the KF Dedicated Server configuration file %s: %w", configFileName, err)
 	}
 	log.Logger.Info("Server configuration file successfully updated", "file", configFileName)
+
+	if err := installMods(sett); err != nil {
+		log.Logger.Error("Failed to install mods", "file", sett.ModsFile.Value(), "error", err)
+		return nil, fmt.Errorf("failed to install mods: %w", err)
+	}
 
 	if sett.EnableKFPatcher.Value() {
 		kfpConfigFilePath := filepath.Join(rootDir, "System", "KFPatcherSettings.ini")
@@ -528,5 +534,36 @@ func readSteamCredentials(sett *settings.KFDSLSettings) error {
 		"function", "readSteamCredentials")
 	sett.SteamLogin = steamUsername
 	sett.SteamPassword = steamPassword
+	return nil
+}
+
+func installMods(sett *settings.KFDSLSettings) error {
+	filename := sett.ModsFile.Value()
+
+	if filename == "" {
+		log.Logger.Info("No mods file specified, skipping mods installation")
+		return nil
+	}
+	if !utils.FileExists(filename) {
+		log.Logger.Warn("Mods file not found, skipping mods installation", "file", filename)
+		return nil
+	}
+
+	log.Logger.Debug("Starting mods installation process")
+	m, err := mods.ParseModsFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to parse mods file %s: %w", filename, err)
+	}
+
+	installed := make(map[string]bool)
+	rootDir := viper.GetString("steamcmd-appinstalldir")
+
+	for name, mod := range m {
+		if err := mod.Install(rootDir, name, m, installed, false); err != nil {
+			return fmt.Errorf("failed to install mod %s: %w", name, err)
+		}
+	}
+	log.Logger.Debug("Completed mods installation process")
+
 	return nil
 }

@@ -70,6 +70,7 @@
         ],
         "depend_on": [
             "KFUnflect"
-        ]
+        ],
+        "enabled": true
     }
 }

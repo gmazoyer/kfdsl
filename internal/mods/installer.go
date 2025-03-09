@@ -34,6 +34,7 @@ type Mod struct {
 	Extract      bool          `json:"extract"`
 	InstallItems []InstallItem `json:"install"`
 	DependOn     []string      `json:"depend_on"`
+	Enabled      bool          `json:"enabled,omitempty"`
 }
 
 var mu sync.Mutex
@@ -54,13 +55,13 @@ func ParseModsFile(filename string) (map[string]*Mod, error) {
 	return items, nil
 }
 
-func (m *Mod) installMods(dir string, deps map[string]*Mod, installed map[string]bool) error {
+func (m *Mod) installRequiredMods(dir string, deps map[string]*Mod, installed map[string]bool) error {
 	for _, name := range m.DependOn {
 		dep, ok := deps[name]
 		if !ok {
 			return fmt.Errorf("mod %s not found", name)
 		}
-		if err := dep.Install(dir, name, deps, installed); err != nil {
+		if err := dep.Install(dir, name, deps, installed, true); err != nil {
 			return err
 		}
 	}
@@ -141,7 +142,12 @@ func (m *Mod) installArchive(dir, archive string) error {
 	return nil
 }
 
-func (m *Mod) Install(dir string, name string, deps map[string]*Mod, installed map[string]bool) error {
+func (m *Mod) Install(dir string, name string, mods map[string]*Mod, installed map[string]bool, isDependency bool) error {
+	if !m.Enabled && !isDependency {
+		log.Logger.Debug("Skipping installation of mod, it is disabled", "name", name)
+		return nil
+	}
+
 	log.Logger.Debug("Installing mod", "name", name)
 
 	mu.Lock()
@@ -151,7 +157,7 @@ func (m *Mod) Install(dir string, name string, deps map[string]*Mod, installed m
 	}
 	mu.Unlock()
 
-	if err := m.installMods(dir, deps, installed); err != nil {
+	if err := m.installRequiredMods(dir, mods, installed); err != nil {
 		return err
 	}
 
