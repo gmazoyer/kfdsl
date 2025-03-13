@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/viper"
@@ -555,15 +556,13 @@ func installMods(sett *settings.KFDSLSettings) error {
 		return fmt.Errorf("failed to parse mods file %s: %w", filename, err)
 	}
 
+	var wg sync.WaitGroup
 	installed := make(map[string]bool)
-	rootDir := viper.GetString("steamcmd-appinstalldir")
+	mods.InstallMods(&wg, viper.GetString("steamcmd-appinstalldir"), m, installed)
+	wg.Wait()
 
-	for name, mod := range m {
-		if err := mod.Install(rootDir, name, m, installed, false); err != nil {
-			return fmt.Errorf("failed to install mod %s: %w", name, err)
-		}
-	}
 	log.Logger.Debug("Completed mods installation process")
+	log.Logger.Info("The following mods were installed:", "mods", installed)
 
 	return nil
 }

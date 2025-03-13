@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/K4rian/kfdsl/internal/log"
@@ -37,36 +38,12 @@ type Mod struct {
 	Enabled      bool          `json:"enabled,omitempty"`
 }
 
+type installError struct {
+	name string
+	err  error
+}
+
 var mu sync.Mutex
-
-func ParseModsFile(filename string) (map[string]*Mod, error) {
-	jsonFile, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer jsonFile.Close()
-
-	var items map[string]*Mod
-	err = json.NewDecoder(jsonFile).Decode(&items)
-	if err != nil {
-		return nil, err
-	}
-
-	return items, nil
-}
-
-func (m *Mod) installRequiredMods(dir string, deps map[string]*Mod, installed map[string]bool) error {
-	for _, name := range m.DependOn {
-		dep, ok := deps[name]
-		if !ok {
-			return fmt.Errorf("mod %s not found", name)
-		}
-		if err := dep.Install(dir, name, deps, installed, true); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 func (m *Mod) isDownloadRequired(dir string) bool {
 	for _, item := range m.InstallItems {
@@ -75,11 +52,15 @@ func (m *Mod) isDownloadRequired(dir string) bool {
 		}
 
 		itemPath := filepath.Join(dir, item.Path, item.Name)
-		if utils.FileExists(itemPath) {
-			if match, err := utils.FileMatchesChecksum(itemPath, item.Checksum); err != nil || !match {
-				log.Logger.Debug("Checksum mismatch, download required", "path", itemPath, "checksum", item.Checksum)
-				return true
-			}
+		log.Logger.Debug("Checking mod file", "path", itemPath, "checksum", item.Checksum)
+
+		if !utils.FileExists(itemPath) {
+			return true
+		}
+
+		if match, err := utils.FileMatchesChecksum(itemPath, item.Checksum); err != nil || !match {
+			log.Logger.Debug("Checksum mismatch, download required", "path", itemPath, "checksum", item.Checksum)
+			return true
 		}
 	}
 
@@ -142,24 +123,18 @@ func (m *Mod) installArchive(dir, archive string) error {
 	return nil
 }
 
-func (m *Mod) Install(dir string, name string, mods map[string]*Mod, installed map[string]bool, isDependency bool) error {
-	if !m.Enabled && !isDependency {
+func (m *Mod) install(dir string, name string) error {
+	if !m.Enabled {
 		log.Logger.Debug("Skipping installation of mod, it is disabled", "name", name)
 		return nil
 	}
 
-	log.Logger.Debug("Installing mod", "name", name)
-
-	mu.Lock()
-	if alreadyInstalled, ok := installed[name]; ok && alreadyInstalled {
-		log.Logger.Debug("Mod already installed, no actions needed", "name", name)
+	if !m.isDownloadRequired(dir) {
+		log.Logger.Debug("Skipping installation of mod, it is already installed", "name", name)
 		return nil
 	}
-	mu.Unlock()
 
-	if err := m.installRequiredMods(dir, mods, installed); err != nil {
-		return err
-	}
+	log.Logger.Debug("Installing mod", "name", name)
 
 	filename, err := m.download(dir, name)
 	if err != nil {
@@ -172,9 +147,92 @@ func (m *Mod) Install(dir string, name string, mods map[string]*Mod, installed m
 		}
 	}
 
-	mu.Lock()
-	installed[name] = true
-	mu.Unlock()
+	return nil
+}
+
+func (m *Mod) resolveDependencies(mods map[string]*Mod) []string {
+	if m.DependOn == nil {
+		return nil
+	}
+
+	deps := make([]string, 0)
+	for _, name := range m.DependOn {
+		if dep, ok := mods[name]; ok {
+			// Enable mod for installation if it is a dependency
+			dep.Enabled = true
+			deps = append(deps, dep.resolveDependencies(mods)...)
+		} else {
+			log.Logger.Warn("Dependency not found", "name", name)
+		}
+	}
+	return deps
+}
+
+func resolveModsToInstall(mods map[string]*Mod) []string {
+	m := make([]string, 0)
+	for name, mod := range mods {
+		m = append(m, name)
+		m = append(m, mod.resolveDependencies(mods)...)
+	}
+	return utils.RemoveDuplicates(m)
+}
+
+func InstallMods(wg *sync.WaitGroup, dir string, mods map[string]*Mod, installed map[string]bool) error {
+	toInstall := resolveModsToInstall(mods)
+	log.Logger.Debug("Mods to install", "mods", strings.Join(toInstall, " / "))
+
+	installations := make(chan string, len(toInstall))
+	errors := make(chan installError, len(toInstall))
+
+	for _, name := range toInstall {
+		mod := mods[name]
+
+		wg.Add(1)
+		go func(name string, mod *Mod) {
+			defer wg.Done()
+
+			err := mod.install(dir, name)
+			if err != nil {
+				errors <- installError{name, err}
+			} else {
+				installations <- name
+			}
+		}(name, mod)
+	}
+
+	go func() {
+		for installedMod := range installations {
+			mu.Lock()
+			installed[installedMod] = true
+			mu.Unlock()
+		}
+	}()
+
+	go func() {
+		for err := range errors {
+			log.Logger.Error("Failed to install mod", "name", err.name, "error", err.err)
+		}
+	}()
+
+	wg.Wait()
+	close(installations)
+	close(errors)
 
 	return nil
+}
+
+func ParseModsFile(filename string) (map[string]*Mod, error) {
+	jsonFile, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer jsonFile.Close()
+
+	var items map[string]*Mod
+	err = json.NewDecoder(jsonFile).Decode(&items)
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }
