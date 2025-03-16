@@ -177,19 +177,20 @@ func resolveModsToInstall(mods map[string]*Mod) []string {
 	return utils.RemoveDuplicates(m)
 }
 
-func InstallMods(wg *sync.WaitGroup, dir string, mods map[string]*Mod, installed map[string]bool) error {
+func InstallMods(dir string, mods map[string]*Mod, installed *[]string) error {
 	toInstall := resolveModsToInstall(mods)
 	log.Logger.Debug("Mods to install", "mods", strings.Join(toInstall, " / "))
 
+	var installWg, processWg sync.WaitGroup
 	installations := make(chan string, len(toInstall))
 	errors := make(chan installError, len(toInstall))
 
 	for _, name := range toInstall {
 		mod := mods[name]
 
-		wg.Add(1)
+		installWg.Add(1)
 		go func(name string, mod *Mod) {
-			defer wg.Done()
+			defer installWg.Done()
 
 			err := mod.install(dir, name)
 			if err != nil {
@@ -200,23 +201,28 @@ func InstallMods(wg *sync.WaitGroup, dir string, mods map[string]*Mod, installed
 		}(name, mod)
 	}
 
+	processWg.Add(1)
 	go func() {
+		defer processWg.Done()
 		for installedMod := range installations {
 			mu.Lock()
-			installed[installedMod] = true
+			*installed = append(*installed, installedMod)
 			mu.Unlock()
 		}
 	}()
 
+	processWg.Add(1)
 	go func() {
+		defer processWg.Done()
 		for err := range errors {
 			log.Logger.Error("Failed to install mod", "name", err.name, "error", err.err)
 		}
 	}()
 
-	wg.Wait()
+	installWg.Wait()
 	close(installations)
 	close(errors)
+	processWg.Wait()
 
 	return nil
 }
